@@ -36,6 +36,12 @@ if [ -z "\${PAWPULSE_ID:-}" ] || [ -z "\${PAWPULSE_TOKEN:-}" ]; then
   exit 1
 fi
 
+# Milliseconds since epoch, or 0 where date lacks %N (BusyBox, macOS).
+now_ms() {
+  t=\$(date +%s%3N 2>/dev/null) || t=""
+  case "\$t" in ''|*[!0-9]*) echo 0 ;; *) echo "\$t" ;; esac
+}
+
 HAVE_JQ=0
 if command -v jq >/dev/null 2>&1; then
   HAVE_JQ=1
@@ -47,10 +53,10 @@ tps_json="null"
 latency_json="null"
 note=""
 
-start_ms=\$(date +%s%3N 2>/dev/null || echo "0")
+start_ms=\$(now_ms)
 
 if [ "\$LLM_KIND" = "openai" ]; then
-  resp=\$(curl -fsS -m 10 "\$LLM_BASE_URL/v1/models" 2>/dev/null) && ok="true" || ok="false"
+  resp=\$(curl --noproxy "*" -fsS -m 10 "\$LLM_BASE_URL/v1/models" 2>/dev/null) && ok="true" || ok="false"
   if [ "\$ok" = "true" ]; then
     if [ "\$HAVE_JQ" = "1" ]; then
       models_json=\$(printf '%s' "\$resp" | jq -c '[.data[]?.id] // []')
@@ -60,7 +66,7 @@ if [ "\$LLM_KIND" = "openai" ]; then
     fi
   fi
 else
-  resp=\$(curl -fsS -m 10 "\$LLM_BASE_URL/api/tags" 2>/dev/null) && ok="true" || ok="false"
+  resp=\$(curl --noproxy "*" -fsS -m 10 "\$LLM_BASE_URL/api/tags" 2>/dev/null) && ok="true" || ok="false"
   if [ "\$ok" = "true" ]; then
     if [ "\$HAVE_JQ" = "1" ]; then
       models_json=\$(printf '%s' "\$resp" | jq -c '[.models[]?.name] // []')
@@ -70,26 +76,26 @@ else
     fi
   fi
   # /api/ps tells us what's actually loaded right now; best-effort, ignore failures.
-  curl -fsS -m 5 "\$LLM_BASE_URL/api/ps" >/dev/null 2>&1 || true
+  curl --noproxy "*" -fsS -m 5 "\$LLM_BASE_URL/api/ps" >/dev/null 2>&1 || true
 fi
 
-end_ms=\$(date +%s%3N 2>/dev/null || echo "0")
+end_ms=\$(now_ms)
 if [ "\$start_ms" != "0" ] && [ "\$end_ms" != "0" ]; then
   latency_json=\$((end_ms - start_ms))
 fi
 
 if [ "\$ok" = "true" ] && [ "\$MEASURE_TPS" = "1" ] && [ -n "\$MEASURE_MODEL" ]; then
-  gen_start=\$(date +%s%3N 2>/dev/null || echo "0")
+  gen_start=\$(now_ms)
   if [ "\$LLM_KIND" = "openai" ]; then
-    gen_resp=\$(curl -fsS -m 30 "\$LLM_BASE_URL/v1/completions" \\
+    gen_resp=\$(curl --noproxy "*" -fsS -m 30 "\$LLM_BASE_URL/v1/completions" \\
       -H 'content-type: application/json' \\
       -d "{\\"model\\":\\"\$MEASURE_MODEL\\",\\"prompt\\":\\"hello\\",\\"max_tokens\\":16}" 2>/dev/null || true)
   else
-    gen_resp=\$(curl -fsS -m 30 "\$LLM_BASE_URL/api/generate" \\
+    gen_resp=\$(curl --noproxy "*" -fsS -m 30 "\$LLM_BASE_URL/api/generate" \\
       -H 'content-type: application/json' \\
       -d "{\\"model\\":\\"\$MEASURE_MODEL\\",\\"prompt\\":\\"hello\\",\\"stream\\":false}" 2>/dev/null || true)
   fi
-  gen_end=\$(date +%s%3N 2>/dev/null || echo "0")
+  gen_end=\$(now_ms)
   if [ -n "\$gen_resp" ] && [ "\$HAVE_JQ" = "1" ]; then
     eval_count=\$(printf '%s' "\$gen_resp" | jq -r '.eval_count // empty')
     eval_duration=\$(printf '%s' "\$gen_resp" | jq -r '.eval_duration // empty')
