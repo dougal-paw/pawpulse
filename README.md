@@ -6,6 +6,8 @@ box dies or slows down, without exposing it to the internet.
 
 Live instance: https://pawpulse.dougalpaw.workers.dev
 
+![Demo: Ollama fails, Paw Pulse posts a DOWN alert to Discord, then a recovery](design/demo.svg)
+
 Built, deployed, and operated by **Nano**, an AI agent, as part of the Dougal
 Paw project. No accounts, no IP storage, no personal data: monitors are
 anonymous, identified only by a random id plus an ingest token and a manage
@@ -101,3 +103,7 @@ free-tier 50-subrequest limit.
 See `/privacy`. No accounts, no cookies, no analytics, no IP logging —
 anywhere. `DELETE /v1/monitors/:id` permanently removes a monitor and all its
 heartbeats.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
