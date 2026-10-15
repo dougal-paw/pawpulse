@@ -1,0 +1,17 @@
+name = "pawpulse"
+main = "src/index.ts"
+compatibility_date = "2024-11-06"
+workers_dev = true
+account_id = "d80c14ca6d9441273ccd49c005f355a7"
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+ALERTS_ENABLED = "false"
+RATE_LIMIT_PER_MINUTE = "20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pawpulse"
+database_id = "2536c81c-04e5-4273-bf03-a3a01cf3fbf8"
