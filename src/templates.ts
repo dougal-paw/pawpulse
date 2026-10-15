@@ -81,7 +81,8 @@ export function landingPage(): string {
     Create a monitor:
     <pre><code>curl -X POST https://pawpulse.dougalpaw.workers.dev/v1/monitors \\
   -H 'content-type: application/json' \\
-  -d '{"name":"home-ollama","grace_seconds":300}'</code></pre>
+  -d '{"name":"home-ollama","grace_seconds":300,
+       "webhook_url":"https://discord.com/api/webhooks/…"}'</code></pre>
     Save the <code>ingest_token</code> and <code>manage_token</code> from the response &mdash; the ingest
     token is the only credential the client needs, and we cannot recover either one for you.
   </li>
@@ -96,6 +97,13 @@ chmod +x /usr/local/bin/pawpulse.sh</code></pre>
 */5 * * * * PAWPULSE_URL=https://pawpulse.dougalpaw.workers.dev PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
   </li>
 </ol>
+
+<h2>Alerts</h2>
+<p>Give a monitor a <code>webhook_url</code> (a Discord channel webhook, or any HTTPS endpoint that
+accepts JSON) and you get one message when it goes <strong>down</strong>, one when it gets
+<strong>slow</strong> (below your <code>slow_tps_threshold</code>), and one when it
+<strong>recovers</strong>. No spam, no repeats. Prefer your own tooling? Point Uptime Kuma or anything
+else at <code>/v1/monitors/&lt;id&gt;/status</code> or embed the <code>/badge/&lt;id&gt;.svg</code>.</p>
 
 <h2>What it checks</h2>
 <p>The client probes your local Ollama (<code>/api/tags</code>, <code>/api/ps</code>) or any
@@ -116,8 +124,8 @@ see the API docs for details on its current limitations.</p>
 <h2>Built by an AI agent</h2>
 <p class="muted">
   Paw Pulse is designed, built, deployed, and operated by Nano, an AI agent, as part of the
-  Dougal Paw project. There is no company behind it and no human support line &mdash; just an
-  agent keeping an eye on infrastructure for other agents and the people who run them.
+  Dougal Paw project, with a human keeping an eye on the agent. Questions or problems:
+  <a href="mailto:pup.dougalpaw@gmail.com">pup.dougalpaw@gmail.com</a> (Nano reads it).
 </p>
 `;
   return page("Paw Pulse — heartbeat monitor for self-hosted LLMs", body);
@@ -128,6 +136,12 @@ export function privacyPage(): string {
 <nav><a href="/">Paw Pulse</a><a href="/privacy">Privacy</a><a href="/openapi.json">API</a><a href="/llms.txt">llms.txt</a></nav>
 <h1>Privacy</h1>
 <p class="tagline">Paw Pulse is built to store as little as possible.</p>
+
+<h2>Who we are</h2>
+<p>Paw Pulse is part of Dougal Paw and is built and run by Nano, an AI agent, under human oversight.
+  The data controller is Dougal Debug Limited (England &amp; Wales). Contact:
+  <a href="mailto:pup.dougalpaw@gmail.com">pup.dougalpaw@gmail.com</a>. Under UK GDPR you can ask us to
+  access or delete data, or complain to the <a href="https://ico.org.uk/">ICO</a>.</p>
 
 <h2>What we store</h2>
 <ul>
@@ -142,24 +156,24 @@ export function privacyPage(): string {
 <h2>What we never store</h2>
 <ul>
   <li>No accounts, no email addresses, no login of any kind.</li>
-  <li>No IP addresses &mdash; not in logs, not in the database, not anywhere.</li>
+  <li>No IP addresses in our database or logs. (Cloudflare, which hosts Paw Pulse, necessarily sees them to deliver requests; see <a href="https://www.cloudflare.com/privacypolicy/">its privacy policy</a>.)</li>
   <li>No cookies, no analytics, no tracking scripts.</li>
   <li>No contents of your prompts or model outputs &mdash; only the numbers above.</li>
 </ul>
 
 <h2>Deleting your data</h2>
 <p>
-  <code>DELETE /v1/monitors/:id</code> with your manage token immediately and permanently removes
-  the monitor and every heartbeat associated with it. There is no backup retention beyond normal
-  database redundancy, and no way for us to undo a deletion.
+  <code>DELETE /v1/monitors/:id</code> with your manage token immediately removes
+  the monitor, its webhook URL and every heartbeat associated with it. Deleted rows may persist in
+  our database host's point-in-time recovery for up to 30 days before they're gone for good.
 </p>
 
 <h2>Alerts</h2>
 <p>
-  Webhook alerts are off by default for every monitor (<code>ALERTS_ENABLED=false</code> at the
-  service level) until we're confident the data-protection story around third-party webhook
-  delivery is solid. When enabled, alert payloads contain only the monitor name, state, and
-  timestamps &mdash; sent to the webhook URL you provided.
+  If you set a webhook URL (e.g. a Discord channel webhook), we store it only to send you alerts
+  and delete it with the monitor or when you remove it via <code>PATCH</code>. Alert payloads contain
+  only the monitor name, state and a timestamp. The service you point the webhook at handles the
+  message under its own terms.
 </p>
 `;
   return page("Paw Pulse — Privacy", body);

@@ -8,7 +8,7 @@ account_id = "d80c14ca6d9441273ccd49c005f355a7"
 crons = ["* * * * *"]
 
 [vars]
-ALERTS_ENABLED = "false"
+ALERTS_ENABLED = "true"
 RATE_LIMIT_PER_MINUTE = "20"
 
 [[d1_databases]]

@@ -28,6 +28,6 @@ REST API above, same validation and privacy rules.
 ## Privacy
 
 See ${origin}/privacy. No cookies, no analytics, no IP logging. Webhook
-alerts are off by default (ALERTS_ENABLED=false) until enabled per-deployment.
+alerts (Discord or generic JSON) fire once per state change: down, slow, recovered.
 `;
 }
