@@ -69,6 +69,10 @@ function validateWebhookUrl(value: unknown): string | null {
   if (u.protocol !== "https:") {
     throw new ValidationError("webhook_url must use https://");
   }
+  if (u.hostname === "ntfy.sh") {
+    // ntfy.sh refuses connections from Cloudflare Workers (HTTP 522), so alerts would never arrive.
+    throw new ValidationError("ntfy.sh can't be reached from Paw Pulse's host; use Telegram, Discord, Slack, Teams or Google Chat instead");
+  }
   return u.toString();
 }
 

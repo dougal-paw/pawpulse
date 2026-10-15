@@ -29,7 +29,7 @@ export function openApiSpec(origin: string) {
                     name: { type: "string", maxLength: 100 },
                     grace_seconds: { type: "integer", minimum: 60, maximum: 86400, default: 300 },
                     slow_tps_threshold: { type: "number", nullable: true },
-                    webhook_url: { type: "string", format: "uri", nullable: true, description: "https:// only" },
+                    webhook_url: { type: "string", format: "uri", nullable: true, description: "https:// only. Native formats for Discord, Slack, Microsoft Teams (incoming webhook or Workflows), Telegram (https://api.telegram.org/bot<token>/sendMessage?chat_id=<id>) and Google Chat; anything else gets generic JSON {content, text, monitor_name, alert, state, timestamp}." },
                     public: { type: "boolean", default: false },
                   },
                 },

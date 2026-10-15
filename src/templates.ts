@@ -79,13 +79,13 @@ export function landingPage(): string {
 <header class="hero"><div class="hero-in">
 <nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
 <h1>Your home AI box just died.<br><em>Find out in minutes, not days.</em></h1>
-<p class="tagline">Paw Pulse watches your Ollama, llama.cpp or vLLM server and pings Discord the moment it goes down,
+<p class="tagline">Paw Pulse watches your Ollama, llama.cpp or vLLM server and alerts you the moment it goes down,
 gets slow, or comes back. No open ports, nothing to install but one small shell script.</p>
 <a class="cta cta-main" href="#quick-start">Set it up free &rarr;</a><a class="cta cta-alt" href="https://github.com/dougal-paw/pawpulse">Open source on GitHub</a>
 <img class="demo" src="/demo.svg" width="1000" height="440" alt="Demo: heartbeats from a home server, Ollama fails at 18:10, Paw Pulse posts 'home-ollama is DOWN' to Discord at 18:11, then 'recovered' after a restart.">
 <div class="tiles">
   <div class="tile"><b>🔒 Nothing exposed</b><span>Your box sends heartbeats out. Nothing on the internet can reach your LLM server.</span></div>
-  <div class="tile"><b>🔔 One alert, not fifty</b><span>Down, slow and recovered: one message per change, straight to Discord or any webhook.</span></div>
+  <div class="tile"><b>🔔 Alerts where you live</b><span>Discord, Slack, Teams, Telegram, or Google Chat. One message per change, never fifty.</span></div>
   <div class="tile"><b>⚡ Tokens/sec, too</b><span>Optionally times a tiny generation, so you hear when it's alive but crawling.</span></div>
 </div>
 </div></header>
@@ -127,10 +127,16 @@ chmod +x /usr/local/bin/pawpulse.sh</code></pre>
 </ol>
 
 <h2>Alerts</h2>
-<p>Give a monitor a <code>webhook_url</code> (a Discord channel webhook, or any HTTPS endpoint that
-accepts JSON) and you get one message when it goes <strong>down</strong>, one when it gets
+<p>Give a monitor a <code>webhook_url</code> and you get one message when it goes <strong>down</strong>, one when it gets
 <strong>slow</strong> (below your <code>slow_tps_threshold</code>), and one when it
-<strong>recovers</strong>. No spam, no repeats. Prefer your own tooling? Point Uptime Kuma or anything
+<strong>recovers</strong>. No spam, no repeats.</p>
+<p>Paste in whichever you use; we detect it and send the right format:</p>
+<ul>
+  <li><strong>Discord</strong>, <strong>Slack</strong>, <strong>Microsoft Teams</strong> (incoming webhook or Workflows) and <strong>Google Chat</strong>: the channel's webhook URL.</li>
+  <li><strong>Telegram</strong>: <code>https://api.telegram.org/bot&lt;token&gt;/sendMessage?chat_id=&lt;your chat id&gt;</code></li>
+  <li><strong>Anything else</strong> (n8n, Home Assistant, Mattermost…): we POST JSON with <code>content</code> and <code>text</code> fields.</li>
+</ul>
+<p> Prefer your own tooling? Point Uptime Kuma or anything
 else at <code>/v1/monitors/&lt;id&gt;/status</code> or embed the <code>/badge/&lt;id&gt;.svg</code>.</p>
 
 <h2>What it checks</h2>
@@ -198,9 +204,9 @@ export function privacyPage(): string {
 
 <h2>Alerts</h2>
 <p>
-  If you set a webhook URL (e.g. a Discord channel webhook), we store it only to send you alerts
+  If you set a webhook URL (Discord, Slack, Teams, Telegram or similar), we store it only to send you alerts
   and delete it with the monitor or when you remove it via <code>PATCH</code>. Alert payloads contain
-  only the monitor name, state and a timestamp. The service you point the webhook at handles the
+  only the monitor name, state, tokens/sec if reported, and a timestamp. Some URLs (such as a Telegram bot URL) contain a secret; use a bot made just for this. The service you point the webhook at handles the
   message under its own terms.
 </p>
 `;

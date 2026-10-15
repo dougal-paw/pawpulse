@@ -28,6 +28,6 @@ REST API above, same validation and privacy rules.
 ## Privacy
 
 See ${origin}/privacy. No cookies, no analytics, no IP logging. Webhook
-alerts (Discord or generic JSON) fire once per state change: down, slow, recovered.
+alerts (sent natively to Discord, Slack, Teams, Telegram bot sendMessage URLs with ?chat_id= and Google Chat; generic JSON {content, text, monitor_name, alert, state, timestamp} elsewhere) fire once per state change: down, slow, recovered.
 `;
 }
