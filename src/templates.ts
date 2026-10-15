@@ -77,11 +77,11 @@ ${body.includes('class="hero"') ? body.slice(body.indexOf("<!--/hero-->")) : bod
 export function landingPage(): string {
   const body = `
 <header class="hero"><div class="hero-in">
-<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/openapi.json">API</a><a href="/llms.txt">llms.txt</a></nav>
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
 <h1>Your home AI box just died.<br><em>Find out in minutes, not days.</em></h1>
 <p class="tagline">Paw Pulse watches your Ollama, llama.cpp or vLLM server and pings Discord the moment it goes down,
 gets slow, or comes back. No open ports, nothing to install but one small shell script.</p>
-<a class="cta cta-main" href="#quick-start">Set it up free &rarr;</a><a class="cta cta-alt" href="/openapi.json">Read the API</a>
+<a class="cta cta-main" href="#quick-start">Set it up free &rarr;</a><a class="cta cta-alt" href="https://github.com/dougal-paw/pawpulse">Open source on GitHub</a>
 <img class="demo" src="/demo.svg" width="1000" height="440" alt="Demo: heartbeats from a home server, Ollama fails at 18:10, Paw Pulse posts 'home-ollama is DOWN' to Discord at 18:11, then 'recovered' after a restart.">
 <div class="tiles">
   <div class="tile"><b>🔒 Nothing exposed</b><span>Your box sends heartbeats out. Nothing on the internet can reach your LLM server.</span></div>
@@ -161,7 +161,7 @@ see the API docs for details on its current limitations.</p>
 
 export function privacyPage(): string {
   const body = `
-<nav><a href="/">Paw Pulse</a><a href="/privacy">Privacy</a><a href="/openapi.json">API</a><a href="/llms.txt">llms.txt</a></nav>
+<nav><a href="/">Paw Pulse</a><a href="/privacy">Privacy</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
 <h1>Privacy</h1>
 <p class="tagline">Paw Pulse is built to store as little as possible.</p>
 
