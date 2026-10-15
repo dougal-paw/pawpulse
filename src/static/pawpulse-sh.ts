@@ -16,6 +16,7 @@ export const PAWPULSE_SH = `#!/bin/sh
 #   LLM_KIND         "ollama" or "openai" (default: ollama)
 #   MEASURE_TPS      "1" to run a tiny generation and measure tokens/sec (default: off)
 #   MEASURE_MODEL    Model to use for the tps probe, if enabled
+#   PAWPULSE_VERBOSE "1" to print a one-line result (default: only when run in a terminal)
 #
 # Example crontab line (every 5 minutes):
 #   */5 * * * * PAWPULSE_ID=abcd1234 PAWPULSE_TOKEN=secret /usr/local/bin/pawpulse.sh
@@ -115,4 +116,16 @@ curl -fsS -m 10 -X POST "\$PAWPULSE_URL/v1/monitors/\$PAWPULSE_ID/beat" \\
   -H "authorization: Bearer \$PAWPULSE_TOKEN" \\
   -H 'content-type: application/json' \\
   -d "\$body" >/dev/null
+
+# One-line summary for humans (terminal, or a log via PAWPULSE_VERBOSE=1).
+if [ -t 1 ] || [ "\${PAWPULSE_VERBOSE:-0}" = "1" ]; then
+  if [ "\$ok" = "true" ]; then
+    first=\$(printf '%s' "\$models_json" | sed 's/^\\[//;s/^"//;s/[]",].*//')
+    line="\$(date +%H:%M) ♥ beat ok  \$first"
+    [ "\$tps_json" != "null" ] && line="\$line  \$tps_json tok/s"
+  else
+    line="\$(date +%H:%M) × beat FAIL  LLM server unreachable"
+  fi
+  echo "\$line"
+fi
 `;

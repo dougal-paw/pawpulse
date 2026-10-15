@@ -12,6 +12,7 @@ import {
   getPublicMonitorForPage,
   getBadgeState,
 } from "./service.ts";
+import { DEMO_SVG } from "./static/demo-svg.ts";
 import { renderBadge, renderCustomBadge } from "./badge.ts";
 import { landingPage, privacyPage, statusPage, notFoundPage } from "./templates.ts";
 import { PAWPULSE_SH } from "./static/pawpulse-sh.ts";
@@ -43,6 +44,7 @@ app.onError((err, c) => {
 // ---- Pages --------------------------------------------------------------
 
 app.get("/", (c) => c.html(landingPage()));
+app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+xml", "cache-control": "public, max-age=3600" }));
 app.get("/privacy", (c) => c.html(privacyPage()));
 
 app.get("/openapi.json", (c) => c.json(openApiSpec(origin(c.req.url))));

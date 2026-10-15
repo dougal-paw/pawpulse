@@ -39,7 +39,15 @@ export async function runCronSweep(env: Env, nowMs: number): Promise<{ checked: 
 
     if (alert && alertsEnabled && monitor.webhook_url && alerted < MAX_WEBHOOKS_PER_RUN) {
       alerted++;
-      await sendWebhookAlert(monitor.webhook_url, monitor.name, alert, newState, nowMs);
+      const rs = rowState(monitor);
+      await sendWebhookAlert(
+        monitor.webhook_url,
+        monitor.name,
+        alert,
+        newState,
+        { lastOk: rs.last_ok, lastTps: rs.last_tps, slowTpsThreshold: rs.slow_tps_threshold, graceSeconds: rs.grace_seconds },
+        nowMs,
+      );
     }
   }
 

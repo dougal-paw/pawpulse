@@ -33,6 +33,20 @@ footer { margin-top: 3rem; font-size: .85rem; opacity: .7; }
 .pill-down { background: #e74c3c; }
 .pill-new { background: #95a5a6; }
 nav a { margin-right: 1rem; font-size: .9rem; }
+.hero { background: radial-gradient(ellipse at top left, #3b1d6e 0%, #140b2a 45%, #0b1e2d 100%); color: #fff; padding: 1.5rem 1.25rem 2.5rem; }
+.hero-in { max-width: 1040px; margin: 0 auto; }
+.hero nav a { color: #c9b8ff; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1; margin: 2.2rem 0 .8rem; letter-spacing: -.02em; }
+.hero h1 em { font-style: normal; color: #ff7b9c; }
+.hero .tagline { font-size: clamp(1.05rem, 2.2vw, 1.3rem); max-width: 40rem; opacity: .9; }
+.cta { display: inline-block; padding: .75rem 1.3rem; border-radius: 10px; font-weight: 700; text-decoration: none; margin: .3rem .6rem .3rem 0; }
+.cta-main { background: #ff7b9c; color: #1a0b1f !important; box-shadow: 0 6px 24px rgba(255,123,156,.35); }
+.cta-alt { border: 1px solid #6c5aa8; color: #e6deff !important; }
+.demo { display: block; width: 100%; height: auto; margin-top: 2rem; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem; }
+.tile { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 1rem 1.1rem; }
+.tile b { display: block; font-size: 1.05rem; margin-bottom: .25rem; }
+.tile span { opacity: .8; font-size: .93rem; }
 `;
 
 function page(title: string, body: string): string {
@@ -46,8 +60,9 @@ function page(title: string, body: string): string {
 <style>${BASE_CSS}</style>
 </head>
 <body>
+${body.includes('class="hero"') ? body.slice(0, body.indexOf("<!--/hero-->")) : ""}
 <div class="wrap">
-${body}
+${body.includes('class="hero"') ? body.slice(body.indexOf("<!--/hero-->")) : body}
 <footer>
   Paw Pulse is built and run by an AI agent (Nano), as part of Dougal Paw.
   &middot; <a href="/privacy">Privacy</a>
@@ -61,9 +76,20 @@ ${body}
 
 export function landingPage(): string {
   const body = `
-<nav><a href="/">Paw Pulse</a><a href="/privacy">Privacy</a><a href="/openapi.json">API</a><a href="/llms.txt">llms.txt</a></nav>
-<h1>Paw Pulse</h1>
-<p class="tagline">Know when your home AI box dies or slows down &mdash; without exposing it to the internet.</p>
+<header class="hero"><div class="hero-in">
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/openapi.json">API</a><a href="/llms.txt">llms.txt</a></nav>
+<h1>Your home AI box just died.<br><em>Find out in minutes, not days.</em></h1>
+<p class="tagline">Paw Pulse watches your Ollama, llama.cpp or vLLM server and pings Discord the moment it goes down,
+gets slow, or comes back. No open ports, nothing to install but one small shell script.</p>
+<a class="cta cta-main" href="#quick-start">Set it up free &rarr;</a><a class="cta cta-alt" href="/openapi.json">Read the API</a>
+<img class="demo" src="/demo.svg" width="1000" height="440" alt="Demo: heartbeats from a home server, Ollama fails at 18:10, Paw Pulse posts 'home-ollama is DOWN' to Discord at 18:11, then 'recovered' after a restart.">
+<div class="tiles">
+  <div class="tile"><b>🔒 Nothing exposed</b><span>Your box sends heartbeats out. Nothing on the internet can reach your LLM server.</span></div>
+  <div class="tile"><b>🔔 One alert, not fifty</b><span>Down, slow and recovered: one message per change, straight to Discord or any webhook.</span></div>
+  <div class="tile"><b>⚡ Tokens/sec, too</b><span>Optionally times a tiny generation, so you hear when it's alive but crawling.</span></div>
+</div>
+</div></header>
+<!--/hero-->
 
 <div class="card">
   <strong>Why push, not pull?</strong>
@@ -75,7 +101,7 @@ export function landingPage(): string {
   </p>
 </div>
 
-<h2>Quick start</h2>
+<h2 id="quick-start">Quick start</h2>
 <ol>
   <li>
     Create a monitor:
@@ -95,6 +121,8 @@ chmod +x /usr/local/bin/pawpulse.sh</code></pre>
     Run it on a schedule (cron shown, systemd timers work the same way):
     <pre><code># every 5 minutes
 */5 * * * * PAWPULSE_URL=https://pawpulse.dougalpaw.workers.dev PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
+    Want the log from the demo above? Add <code>PAWPULSE_VERBOSE=1</code> and append
+    <code>&gt;&gt; ~/pulse.log</code>, then <code>tail -f ~/pulse.log</code>.
   </li>
 </ol>
 
