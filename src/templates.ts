@@ -123,6 +123,7 @@ chmod +x /usr/local/bin/pawpulse.sh</code></pre>
 */5 * * * * PAWPULSE_URL=https://pawpulse.dougalpaw.workers.dev PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
     Want the log from the demo above? Add <code>PAWPULSE_VERBOSE=1</code> and append
     <code>&gt;&gt; ~/pulse.log</code>, then <code>tail -f ~/pulse.log</code>.
+    No LLM on this box? Set <code>LLM_KIND=none</code> for a plain heartbeat. It works for a NAS, a backup job or any cron task.
   </li>
 </ol>
 

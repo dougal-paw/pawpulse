@@ -16,7 +16,7 @@ export function llmsTxt(origin: string): string {
 - GET ${origin}/v1/monitors/:id/heartbeats?limit=50 — recent heartbeats, newest first.
 - PATCH/DELETE ${origin}/v1/monitors/:id — update or permanently delete, with manage_token.
 - GET ${origin}/s/:id — public HTML status page. GET ${origin}/badge/:id.svg — shields-style badge.
-- GET ${origin}/pawpulse.sh — POSIX sh client for cron/systemd; probes a local Ollama or OpenAI-compatible server and posts a beat.
+- GET ${origin}/pawpulse.sh — POSIX sh client for cron/systemd; probes a local Ollama or OpenAI-compatible server and posts a beat (LLM_KIND=ollama|openai|none; none = plain heartbeat for any box or cron job).
 
 ## MCP
 

@@ -20,6 +20,9 @@ and POSTs a heartbeat out to this service every few minutes. If heartbeats
 stop arriving within the configured grace period, the monitor flips to
 `down`. Your LLM server never accepts an inbound connection.
 
+No LLM on the box? `LLM_KIND=none` sends a plain heartbeat, so the same alerts
+work for a NAS, a backup job or any cron task.
+
 ## Stack
 
 - Cloudflare Workers (free tier, `workers.dev`) + D1 + Cron Triggers.

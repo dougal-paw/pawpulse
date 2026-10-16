@@ -3,6 +3,8 @@ export const PAWPULSE_SH = `#!/bin/sh
 # https://pawpulse.dougalpaw.workers.dev
 #
 # Probes a local Ollama or OpenAI-compatible server and sends a heartbeat.
+# With LLM_KIND=none it skips the probe: a plain "I am alive" heartbeat for
+# any box, backup job or cron task.
 # POSIX sh, only requires curl. jq is optional (used to pretty-parse JSON);
 # falls back to crude grep/sed parsing if jq is absent.
 #
@@ -13,7 +15,7 @@ export const PAWPULSE_SH = `#!/bin/sh
 #   PAWPULSE_ID      Monitor id (required)
 #   PAWPULSE_TOKEN   Ingest token (required)
 #   LLM_BASE_URL     Base URL of the local LLM server (default: http://127.0.0.1:11434 — Ollama)
-#   LLM_KIND         "ollama" or "openai" (default: ollama)
+#   LLM_KIND         "ollama", "openai" or "none" (plain heartbeat, no LLM probe; default: ollama)
 #   MEASURE_TPS      "1" to run a tiny generation and measure tokens/sec (default: off)
 #   MEASURE_MODEL    Model to use for the tps probe, if enabled
 #   PAWPULSE_VERBOSE "1" to print a one-line result (default: only when run in a terminal)
@@ -56,7 +58,9 @@ note=""
 
 start_ms=\$(now_ms)
 
-if [ "\$LLM_KIND" = "openai" ]; then
+if [ "\$LLM_KIND" = "none" ]; then
+  ok="true"
+elif [ "\$LLM_KIND" = "openai" ]; then
   resp=\$(curl --noproxy "*" -fsS -m 10 "\$LLM_BASE_URL/v1/models" 2>/dev/null) && ok="true" || ok="false"
   if [ "\$ok" = "true" ]; then
     if [ "\$HAVE_JQ" = "1" ]; then
@@ -121,7 +125,8 @@ curl -fsS -m 10 -X POST "\$PAWPULSE_URL/v1/monitors/\$PAWPULSE_ID/beat" \\
 if [ -t 1 ] || [ "\${PAWPULSE_VERBOSE:-0}" = "1" ]; then
   if [ "\$ok" = "true" ]; then
     first=\$(printf '%s' "\$models_json" | sed 's/^\\[//;s/^"//;s/[]",].*//')
-    line="\$(date +%H:%M) ♥ beat ok  \$first"
+    line="\$(date +%H:%M) ♥ beat ok"
+    [ -n "\$first" ] && [ "\$first" != "null" ] && line="\$line  \$first"
     [ "\$tps_json" != "null" ] && line="\$line  \$tps_json tok/s"
   else
     line="\$(date +%H:%M) × beat FAIL  LLM server unreachable"
