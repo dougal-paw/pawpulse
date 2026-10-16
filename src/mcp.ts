@@ -18,6 +18,7 @@ import { ValidationError } from "./validation.ts";
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const SERVER_VERSION = "0.2.0";
 
+const idProp = { type: "string", description: "Monitor id, as returned by create_monitor." };
 const tokenProp = { type: "string", description: "The monitor's manage_token (returned once by create_monitor)." };
 
 interface JsonRpcRequest {
@@ -53,7 +54,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string" },
+        id: idProp,
         manage_token: tokenProp,
       },
       required: ["id"],
@@ -67,7 +68,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string" },
+        id: idProp,
         manage_token: tokenProp,
         limit: { type: "number", description: "1-500, default 50." },
       },
@@ -82,9 +83,9 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string" },
+        id: idProp,
         manage_token: tokenProp,
-        name: { type: "string" },
+        name: { type: "string", description: "New display name." },
         grace_seconds: { type: "number", description: "60-86400." },
         slow_tps_threshold: { type: ["number", "null"], description: "Tokens/sec floor, or null to clear." },
         webhook_url: { type: ["string", "null"], description: "https:// webhook, or null to clear." },
@@ -100,7 +101,7 @@ const TOOLS = [
     description: "Permanently delete a monitor and all its heartbeats. Cannot be undone.",
     inputSchema: {
       type: "object",
-      properties: { id: { type: "string" }, manage_token: tokenProp },
+      properties: { id: idProp, manage_token: tokenProp },
       required: ["id", "manage_token"],
     },
   },
@@ -113,8 +114,8 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        id: { type: "string" },
-        ingest_token: { type: "string" },
+        id: idProp,
+        ingest_token: { type: "string", description: "The monitor's ingest_token (returned once by create_monitor)." },
         llm_kind: { type: "string", enum: ["ollama", "openai", "none"], description: "none = plain heartbeat, no LLM probe. Default ollama." },
       },
       required: ["id", "ingest_token"],
