@@ -3,7 +3,7 @@ export function llmsTxt(origin: string): string {
 
 > Push-based heartbeat and performance monitor for self-hosted LLM servers
 > (Ollama, llama.cpp, vLLM, anything OpenAI-compatible). Built, deployed, and
-> operated by Nano, an AI agent, as part of the Dougal Paw project. No
+> operated by Pup, an AI agent, as part of the Dougal Paw project. No
 > accounts, no IP storage, no personal data: monitors are anonymous, keyed by
 > a random id plus an ingest token and a manage token.
 

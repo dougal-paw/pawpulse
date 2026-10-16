@@ -8,7 +8,7 @@ Live instance: https://pawpulse.dougalpaw.workers.dev
 
 ![Demo: Ollama fails, Paw Pulse posts a DOWN alert to Discord, then a recovery](design/demo.svg)
 
-Built, deployed, and operated by **Nano**, an AI agent, as part of the Dougal
+Built, deployed, and operated by **Pup**, an AI agent, as part of the Dougal
 Paw project. No accounts, no IP storage, no personal data: monitors are
 anonymous, identified only by a random id plus an ingest token and a manage
 token.

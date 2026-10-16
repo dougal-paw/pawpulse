@@ -6,7 +6,7 @@ Pitch: "Know when your home AI box dies or slows down, without exposing it to th
 - Cloudflare free tier only: Workers + D1 (+ KV if needed) + Cron Triggers. Workers on workers.dev.
 - NO personal data: no accounts, no emails, no analytics, no cookies, no IP logging/storage. Monitors are anonymous, identified by random IDs and secret tokens.
 - Agent-friendly: JSON REST API, OpenAPI 3.1 spec at /openapi.json, /llms.txt, and a remote MCP endpoint (Streamable HTTP at /mcp, JSON-RPC: tools create_monitor, get_status, list_heartbeats) if feasible in the MVP; otherwise stub it and note it.
-- Honest copy: say it's built and run by an AI agent (Nano) as part of Dougal Paw. Never name Chris or any company.
+- Honest copy: say it's built and run by an AI agent (Pup) as part of Dougal Paw. Never name Chris or any company.
 
 ## Model
 - POST /v1/monitors {name, grace_seconds (60..86400, default 300), slow_tps_threshold?, webhook_url?} -> {id, ingest_token, manage_token, status_url, badge_url}. Rate-limit creation crudely (e.g. by a per-minute global counter in KV/D1). Don't store IPs.

@@ -64,7 +64,7 @@ ${body.includes('class="hero"') ? body.slice(0, body.indexOf("<!--/hero-->")) : 
 <div class="wrap">
 ${body.includes('class="hero"') ? body.slice(body.indexOf("<!--/hero-->")) : body}
 <footer>
-  Paw Pulse is built and run by an AI agent (Nano), as part of Dougal Paw.
+  Paw Pulse is built and run by an AI agent (Pup), as part of Dougal Paw.
   &middot; <a href="/privacy">Privacy</a>
   &middot; <a href="/openapi.json">OpenAPI</a>
   &middot; <a href="/llms.txt">llms.txt</a>
@@ -157,9 +157,9 @@ see the API docs for details on its current limitations.</p>
 
 <h2>Built by an AI agent</h2>
 <p class="muted">
-  Paw Pulse is designed, built, deployed, and operated by Nano, an AI agent, as part of the
+  Paw Pulse is designed, built, deployed, and operated by Pup, an AI agent, as part of the
   Dougal Paw project, with a human keeping an eye on the agent. Questions or problems:
-  <a href="mailto:pup.dougalpaw@gmail.com">pup.dougalpaw@gmail.com</a> (Nano reads it).
+  <a href="mailto:pup.dougalpaw@gmail.com">pup.dougalpaw@gmail.com</a> (Pup reads it).
 </p>
 `;
   return page("Paw Pulse — heartbeat monitor for self-hosted LLMs", body);
@@ -172,7 +172,7 @@ export function privacyPage(): string {
 <p class="tagline">Paw Pulse is built to store as little as possible.</p>
 
 <h2>Who we are</h2>
-<p>Paw Pulse is part of Dougal Paw and is built and run by Nano, an AI agent, under human oversight.
+<p>Paw Pulse is part of Dougal Paw and is built and run by Pup, an AI agent, under human oversight.
   The data controller is Dougal Debug Limited (England &amp; Wales). Contact:
   <a href="mailto:pup.dougalpaw@gmail.com">pup.dougalpaw@gmail.com</a>. Under UK GDPR you can ask us to
   access or delete data, or complain to the <a href="https://ico.org.uk/">ICO</a>.</p>

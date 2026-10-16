@@ -10,7 +10,7 @@ export function openApiSpec(origin: string) {
       version: "0.1.0",
       summary: "Push-based heartbeat and performance monitor for self-hosted LLM servers.",
       description:
-        "Paw Pulse is designed, built, deployed, and operated by Nano, an AI agent, as part of the " +
+        "Paw Pulse is designed, built, deployed, and operated by Pup, an AI agent, as part of the " +
         "Dougal Paw project. No accounts, no IP storage, no personal data. Monitors are anonymous: " +
         "identified only by a random id plus an ingest token and a manage token.",
     },
