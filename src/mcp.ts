@@ -12,11 +12,12 @@ import type { Env } from "./env.ts";
 import { HttpError } from "./errors.ts";
 import { createMonitor, deleteMonitor, getStatus, listHeartbeats, patchMonitor } from "./service.ts";
 import { ValidationError } from "./validation.ts";
+import { llmsTxt } from "./llms.ts";
 
 // Newest first. We answer with the client's version if we support it,
 // otherwise our newest, and the client decides whether to continue.
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.3.0";
 
 const idProp = { type: "string", description: "Monitor id, as returned by create_monitor." };
 const tokenProp = { type: "string", description: "The monitor's manage_token (returned once by create_monitor)." };
@@ -193,6 +194,51 @@ async function callTool(env: Env, origin: string, name: string, args: Record<str
   }
 }
 
+const GUIDE_URI = "pawpulse://guide";
+
+const RESOURCES = [
+  {
+    uri: GUIDE_URI,
+    name: "guide",
+    title: "Paw Pulse guide",
+    description: "How Paw Pulse works: monitors, heartbeats, alerts and the REST API (same as /llms.txt).",
+    mimeType: "text/markdown",
+  },
+];
+
+const PROMPTS = [
+  {
+    name: "monitor_my_box",
+    title: "Monitor my box",
+    description: "Set up a Paw Pulse heartbeat monitor for a self-hosted LLM box (or any box) end to end.",
+    arguments: [
+      { name: "name", description: "What to call the monitor, e.g. 'basement ollama'.", required: false },
+      { name: "llm_kind", description: "ollama, openai (any OpenAI-compatible server) or none.", required: false },
+    ],
+  },
+];
+
+function monitorPrompt(args: Record<string, string>) {
+  const name = args.name?.trim() || "my LLM box";
+  const kind = ["ollama", "openai", "none"].includes(args.llm_kind ?? "") ? args.llm_kind : "ollama";
+  return {
+    description: "Set up a Paw Pulse monitor",
+    messages: [
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text:
+            `Set up Paw Pulse monitoring for "${name}" (LLM_KIND=${kind}). ` +
+            "Call create_monitor with that name, then setup_instructions with the returned id and ingest_token " +
+            `and llm_kind=${kind}. Show me the commands to run on the box, and remind me to store the ` +
+            "manage_token somewhere safe because it cannot be recovered. After I've run them, check get_status.",
+        },
+      },
+    ],
+  };
+}
+
 /** Handle one JSON-RPC request/notification over the Streamable HTTP POST path. */
 export async function handleMcpRequest(
   env: Env,
@@ -210,8 +256,18 @@ export async function handleMcpRequest(
       requested && SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : SUPPORTED_PROTOCOL_VERSIONS[0];
     return rpcResult(id, {
       protocolVersion: version,
-      capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "pawpulse", title: "Paw Pulse", version: SERVER_VERSION },
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { listChanged: false },
+        prompts: { listChanged: false },
+      },
+      serverInfo: {
+        name: "pawpulse",
+        title: "Paw Pulse",
+        version: SERVER_VERSION,
+        websiteUrl: origin,
+        icons: [{ src: `${origin}/icon.svg`, mimeType: "image/svg+xml", sizes: ["any"] }],
+      },
       instructions:
         "Paw Pulse monitors self-hosted LLM boxes (and any box with LLM_KIND=none) with outbound heartbeats. " +
         "Typical flow: create_monitor -> setup_instructions -> run the commands on the box -> get_status. " +
@@ -235,6 +291,36 @@ export async function handleMcpRequest(
     >;
     const result = await callTool(env, origin, name, args);
     return rpcResult(id, result);
+  }
+
+  if (method === "resources/list") {
+    return rpcResult(id, { resources: RESOURCES });
+  }
+
+  if (method === "resources/templates/list") {
+    return rpcResult(id, { resourceTemplates: [] });
+  }
+
+  if (method === "resources/read") {
+    const uri = String((params as { uri?: string } | undefined)?.uri ?? "");
+    if (uri === GUIDE_URI) {
+      return rpcResult(id, { contents: [{ uri, mimeType: "text/markdown", text: llmsTxt(origin) }] });
+    }
+    return rpcError(id, -32002, `resource not found: ${uri}`);
+  }
+
+  if (method === "prompts/list") {
+    return rpcResult(id, { prompts: PROMPTS });
+  }
+
+  if (method === "prompts/get") {
+    const name = String((params as { name?: string } | undefined)?.name ?? "");
+    const args = ((params as { arguments?: Record<string, string> } | undefined)?.arguments ?? {}) as Record<
+      string,
+      string
+    >;
+    if (name === "monitor_my_box") return rpcResult(id, monitorPrompt(args));
+    return rpcError(id, -32602, `unknown prompt: ${name}`);
   }
 
   return rpcError(id, -32601, `method not found: ${method}`);

@@ -1,3 +1,4 @@
+import { ICON_SVG } from "./static/icon-svg.ts";
 import { Hono } from "hono";
 import type { Env } from "./env.ts";
 import { HttpError } from "./errors.ts";
@@ -48,6 +49,10 @@ app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+x
 app.get("/privacy", (c) => c.html(privacyPage()));
 
 app.get("/openapi.json", (c) => c.json(openApiSpec(origin(c.req.url))));
+const svgHeaders = { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" };
+app.get("/icon.svg", (c) => c.body(ICON_SVG, 200, svgHeaders));
+app.get("/favicon.svg", (c) => c.body(ICON_SVG, 200, svgHeaders));
+app.get("/favicon.ico", (c) => c.redirect("/favicon.svg", 301));
 app.get("/llms.txt", (c) => c.text(llmsTxt(origin(c.req.url)), 200, { "content-type": "text/plain; charset=utf-8" }));
 // Proves domain ownership to the official MCP Registry (public key only).
 app.get("/.well-known/mcp-registry-auth", (c) => c.text("v=MCPv1; k=ed25519; p=SSZoTeQfEKO3gb/FIgvyhrc8rjDQ3ctJ/7p9cM9KXHo=", 200, { "content-type": "text/plain; charset=utf-8" }));

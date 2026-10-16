@@ -3,7 +3,7 @@
   "name": "dev.workers.dougalpaw.pawpulse/pawpulse",
   "title": "Paw Pulse",
   "description": "Heartbeat and tokens/sec monitoring for self-hosted LLM servers (Ollama etc.), with down alerts.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "websiteUrl": "https://pawpulse.dougalpaw.workers.dev",
   "repository": {
     "url": "https://github.com/dougal-paw/pawpulse",
