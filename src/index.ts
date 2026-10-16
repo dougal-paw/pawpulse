@@ -18,7 +18,7 @@ import { landingPage, privacyPage, statusPage, notFoundPage } from "./templates.
 import { PAWPULSE_SH } from "./static/pawpulse-sh.ts";
 import { openApiSpec } from "./openapi.ts";
 import { llmsTxt } from "./llms.ts";
-import { handleMcpRequest } from "./mcp.ts";
+import { handleMcpRequest, SUPPORTED_PROTOCOL_VERSIONS } from "./mcp.ts";
 import { runCronSweep } from "./cron.ts";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -106,24 +106,24 @@ app.delete("/v1/monitors/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// ---- MCP stub (Streamable HTTP, request/response only) --------------------
+// ---- MCP (Streamable HTTP, stateless JSON responses) ---------------------
 
 app.post("/mcp", async (c) => {
+  const pv = c.req.header("mcp-protocol-version");
+  if (pv && !SUPPORTED_PROTOCOL_VERSIONS.includes(pv)) {
+    return c.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: `unsupported MCP-Protocol-Version: ${pv}` } }, 400);
+  }
   const body = await c.req.json().catch(() => null);
-  if (!body || typeof body !== "object") return c.json({ error: "invalid JSON-RPC body" }, 400);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error: expected one JSON-RPC message" } }, 400);
+  }
   const response = await handleMcpRequest(c.env, origin(c.req.url), body);
-  if (response === null) return c.body(null, 202); // notification: no content
+  if (response === null) return c.body(null, 202); // notification or response: no content
   return c.json(response);
 });
 
-app.get("/mcp", (c) =>
-  c.json(
-    {
-      error: "this is a stub transport: POST JSON-RPC requests here; SSE streaming and GET are not supported",
-    },
-    405,
-  ),
-);
+// No server-initiated messages, so no SSE stream to open.
+app.get("/mcp", (c) => c.json({ error: "this server has no SSE stream; POST JSON-RPC messages to /mcp" }, 405, { allow: "POST" }));
 
 app.notFound((c) => {
   if (c.req.path.startsWith("/v1/") || c.req.path.startsWith("/mcp")) {

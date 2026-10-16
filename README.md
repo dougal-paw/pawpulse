@@ -40,7 +40,7 @@ src/
   validation.ts  Pure input validation (unit tested)
   cron.ts        Per-minute sweep: state transitions + alert dispatch
   webhook.ts     Outbound alert delivery (Discord-aware, generic JSON fallback)
-  mcp.ts         Minimal MCP stub (Streamable HTTP, JSON-RPC, no SSE/sessions)
+  mcp.ts         Remote MCP server (Streamable HTTP, stateless)
   openapi.ts     OpenAPI 3.1 document served at /openapi.json
   llms.ts        /llms.txt content
   templates.ts   HTML pages (/, /privacy, /s/:id)
@@ -61,24 +61,33 @@ See `/openapi.json` for the full spec and `/llms.txt` for a terse summary.
 - `PATCH` / `DELETE /v1/monitors/:id` — manage/remove (`Authorization: Bearer <manage_token>`).
 - `GET /s/:id` — public HTML status page. `GET /badge/:id.svg` — status badge.
 - `GET /pawpulse.sh` — the client script.
-- `POST /mcp` — stub remote MCP endpoint (see below).
+- `POST /mcp` — remote MCP server (see below).
 
 ## MCP
 
-`/mcp` implements a minimal subset of the Model Context Protocol: Streamable
-HTTP transport, JSON-RPC 2.0, one request in → one response out. It does
-**not** implement SSE streaming or session resumption — each `tools/call` is
-a single stateless request. Tools: `create_monitor`, `get_status`,
-`list_heartbeats`, all thin wrappers over the same service layer the REST API
-uses.
+`https://pawpulse.dougalpaw.workers.dev/mcp` is a remote MCP server (Streamable
+HTTP). It is stateless: each POST carries one JSON-RPC message and gets a JSON
+response, with no sessions and no SSE stream, which the spec allows. It supports
+protocol versions 2025-06-18, 2025-03-26 and 2024-11-05.
+
+Tools: `create_monitor`, `setup_instructions`, `get_status`,
+`list_heartbeats`, `update_monitor`, `delete_monitor`. They use the same
+service layer as the REST API. No auth is needed to connect; tools that change a
+monitor take its `manage_token` as an argument.
+
+```json
+{ "mcpServers": { "pawpulse": { "type": "http", "url": "https://pawpulse.dougalpaw.workers.dev/mcp" } } }
+```
 
 ## Alerts
 
-Webhook alerts (Discord-compatible `{content}` payload, detected by hostname,
-or a generic JSON payload otherwise) are gated behind `ALERTS_ENABLED`, which
-**defaults to `"false"`** for the whole deployment regardless of any
-individual monitor's `webhook_url`. Flip it in `wrangler.toml` and redeploy
-once you're comfortable with a given webhook's data handling.
+Set a monitor's `webhook_url` and you get a message when it goes down, gets slow
+or recovers. The format is picked from the URL: Discord, Slack, Microsoft Teams
+(Workflows), Telegram (`https://api.telegram.org/bot<token>/sendMessage?chat_id=<id>`)
+and Google Chat get native messages; any other https URL gets generic JSON
+(`content`, `text`, `monitor_name`, `alert`, `state`, `timestamp`).
+Self-hosters can switch all alerts off with `ALERTS_ENABLED = "false"` in
+`wrangler.toml`.
 
 ## Development
 

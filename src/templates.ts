@@ -149,9 +149,8 @@ since it costs a little compute on your box.</p>
 <h2>For agents &amp; scripts</h2>
 <p>Everything above is also a plain JSON REST API &mdash; see the
 <a href="/openapi.json">OpenAPI 3.1 spec</a> and <a href="/llms.txt">llms.txt</a> for a
-machine-readable summary. A minimal remote MCP endpoint is available at <code>/mcp</code>
-(tools: <code>create_monitor</code>, <code>get_status</code>, <code>list_heartbeats</code>) &mdash;
-see the API docs for details on its current limitations.</p>
+machine-readable summary. Agents can also use the remote MCP server at <code>/mcp</code> (Streamable HTTP):
+an agent can create a monitor, get the setup commands and check status without leaving the chat.</p>
 
 <h2>Pricing</h2>
 <p>Free during beta.</p>

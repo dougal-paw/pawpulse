@@ -1,7 +1,8 @@
-// Minimal remote MCP endpoint: Streamable HTTP transport, JSON-RPC 2.0,
-// request/response only (no session management, no SSE streaming, no
-// resumability). This is an honest subset of the MCP spec, enough for a
-// client to call the three read/write tools in one shot per request.
+// Remote MCP server over Streamable HTTP. Stateless: every POST carries one
+// JSON-RPC message and gets a plain JSON response (the spec lets servers
+// answer with application/json instead of SSE, and makes sessions optional).
+// GET /mcp returns 405 because this server never pushes server-initiated
+// messages.
 //
 // Tools reuse the exact same service-layer functions as the REST API, so
 // behavior (validation, tokens, privacy rules) can never drift between the
@@ -9,10 +10,15 @@
 
 import type { Env } from "./env.ts";
 import { HttpError } from "./errors.ts";
-import { createMonitor, getStatus, listHeartbeats } from "./service.ts";
+import { createMonitor, deleteMonitor, getStatus, listHeartbeats, patchMonitor } from "./service.ts";
 import { ValidationError } from "./validation.ts";
 
-const PROTOCOL_VERSION_FALLBACK = "2024-11-05";
+// Newest first. We answer with the client's version if we support it,
+// otherwise our newest, and the client decides whether to continue.
+export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+const SERVER_VERSION = "0.2.0";
+
+const tokenProp = { type: "string", description: "The monitor's manage_token (returned once by create_monitor)." };
 
 interface JsonRpcRequest {
   jsonrpc?: string;
@@ -24,6 +30,8 @@ interface JsonRpcRequest {
 const TOOLS = [
   {
     name: "create_monitor",
+    title: "Create monitor",
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     description:
       "Create a new anonymous Paw Pulse monitor. Returns ingest_token and manage_token exactly once — store them, they cannot be recovered.",
     inputSchema: {
@@ -39,30 +47,80 @@ const TOOLS = [
   },
   {
     name: "get_status",
+    title: "Get monitor status",
+    annotations: { readOnlyHint: true, openWorldHint: false },
     description: "Get the current status of a monitor. Private monitors require manage_token.",
     inputSchema: {
       type: "object",
       properties: {
         id: { type: "string" },
-        manage_token: { type: "string" },
+        manage_token: tokenProp,
       },
       required: ["id"],
     },
   },
   {
     name: "list_heartbeats",
+    title: "List recent heartbeats",
+    annotations: { readOnlyHint: true, openWorldHint: false },
     description: "List recent heartbeats for a monitor (newest first). Private monitors require manage_token.",
     inputSchema: {
       type: "object",
       properties: {
         id: { type: "string" },
-        manage_token: { type: "string" },
+        manage_token: tokenProp,
         limit: { type: "number", description: "1-500, default 50." },
       },
       required: ["id"],
     },
   },
-] as const;
+  {
+    name: "update_monitor",
+    title: "Update monitor settings",
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    description: "Change a monitor's name, grace period, slow threshold, webhook or visibility. Only the fields you pass change.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        manage_token: tokenProp,
+        name: { type: "string" },
+        grace_seconds: { type: "number", description: "60-86400." },
+        slow_tps_threshold: { type: ["number", "null"], description: "Tokens/sec floor, or null to clear." },
+        webhook_url: { type: ["string", "null"], description: "https:// webhook, or null to clear." },
+        public: { type: "boolean" },
+      },
+      required: ["id", "manage_token"],
+    },
+  },
+  {
+    name: "delete_monitor",
+    title: "Delete monitor",
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    description: "Permanently delete a monitor and all its heartbeats. Cannot be undone.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, manage_token: tokenProp },
+      required: ["id", "manage_token"],
+    },
+  },
+  {
+    name: "setup_instructions",
+    title: "Get setup instructions",
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description:
+      "Shell commands to install the heartbeat script on the box being monitored and run it from cron. Pass the id and ingest_token from create_monitor.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        ingest_token: { type: "string" },
+        llm_kind: { type: "string", enum: ["ollama", "openai", "none"], description: "none = plain heartbeat, no LLM probe. Default ollama." },
+      },
+      required: ["id", "ingest_token"],
+    },
+  },
+];
 
 function rpcResult(id: unknown, result: unknown) {
   return { jsonrpc: "2.0", id: id ?? null, result };
@@ -73,7 +131,27 @@ function rpcError(id: unknown, code: number, message: string) {
 }
 
 function toolContent(payload: unknown, isError = false) {
-  return { content: [{ type: "text", text: JSON.stringify(payload) }], isError };
+  const out: Record<string, unknown> = { content: [{ type: "text", text: JSON.stringify(payload) }], isError };
+  if (!isError && payload && typeof payload === "object" && !Array.isArray(payload)) out.structuredContent = payload;
+  return out;
+}
+
+const tokenArg = (v: unknown) => (v == null ? null : String(v));
+
+function setupInstructions(origin: string, args: Record<string, unknown>) {
+  const id = String(args.id ?? "");
+  const token = String(args.ingest_token ?? "");
+  const kind = args.llm_kind === "openai" || args.llm_kind === "none" ? args.llm_kind : "ollama";
+  if (!/^[A-Za-z0-9_-]+$/.test(id) || !/^[A-Za-z0-9_-]+$/.test(token)) {
+    throw new ValidationError("id and ingest_token must be the values returned by create_monitor");
+  }
+  const env = `PAWPULSE_URL=${origin} PAWPULSE_ID=${id} PAWPULSE_TOKEN=${token}${kind === "ollama" ? "" : ` LLM_KIND=${kind}`}`;
+  return {
+    install: `curl -o /usr/local/bin/pawpulse.sh ${origin}/pawpulse.sh && chmod +x /usr/local/bin/pawpulse.sh`,
+    test_once: `${env} PAWPULSE_VERBOSE=1 /usr/local/bin/pawpulse.sh`,
+    crontab_line: `*/5 * * * * ${env} /usr/local/bin/pawpulse.sh`,
+    note: "Run these on the box being monitored. The ingest token only allows posting heartbeats.",
+  };
 }
 
 async function callTool(env: Env, origin: string, name: string, args: Record<string, unknown>) {
@@ -85,16 +163,26 @@ async function callTool(env: Env, origin: string, name: string, args: Record<str
     }
     if (name === "get_status") {
       const id = String(args.id ?? "");
-      const manageToken = args.manage_token == null ? null : String(args.manage_token);
-      const result = await getStatus(env, id, manageToken, nowMs);
+      const result = await getStatus(env, id, tokenArg(args.manage_token), nowMs);
       return toolContent(result);
     }
     if (name === "list_heartbeats") {
       const id = String(args.id ?? "");
-      const manageToken = args.manage_token == null ? null : String(args.manage_token);
       const limit = typeof args.limit === "number" ? args.limit : 50;
-      const result = await listHeartbeats(env, id, manageToken, limit);
+      const result = await listHeartbeats(env, id, tokenArg(args.manage_token), limit);
       return toolContent(result);
+    }
+    if (name === "update_monitor") {
+      const { id, manage_token, ...fields } = args;
+      await patchMonitor(env, String(id ?? ""), tokenArg(manage_token), fields as never);
+      return toolContent(await getStatus(env, String(id), tokenArg(manage_token), nowMs));
+    }
+    if (name === "delete_monitor") {
+      await deleteMonitor(env, String(args.id ?? ""), tokenArg(args.manage_token));
+      return toolContent({ ok: true, deleted: String(args.id) });
+    }
+    if (name === "setup_instructions") {
+      return toolContent(setupInstructions(origin, args));
     }
     return toolContent({ error: `unknown tool: ${name}` }, true);
   } catch (e) {
@@ -112,19 +200,26 @@ export async function handleMcpRequest(
 ): Promise<{ jsonrpc: string; id: unknown; result?: unknown; error?: unknown } | null> {
   const { id, method, params } = body;
 
+  // Notifications (no id) never get a response.
+  if (id === undefined || (typeof method === "string" && method.startsWith("notifications/"))) return null;
+
   if (method === "initialize") {
     const requested = (params as { protocolVersion?: string } | undefined)?.protocolVersion;
+    const version =
+      requested && SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : SUPPORTED_PROTOCOL_VERSIONS[0];
     return rpcResult(id, {
-      protocolVersion: requested || PROTOCOL_VERSION_FALLBACK,
-      capabilities: { tools: {} },
-      serverInfo: { name: "pawpulse", version: "0.1.0" },
+      protocolVersion: version,
+      capabilities: { tools: { listChanged: false } },
+      serverInfo: { name: "pawpulse", title: "Paw Pulse", version: SERVER_VERSION },
       instructions:
-        "Stub transport: stateless request/response only, no SSE streaming or session resumption.",
+        "Paw Pulse monitors self-hosted LLM boxes (and any box with LLM_KIND=none) with outbound heartbeats. " +
+        "Typical flow: create_monitor -> setup_instructions -> run the commands on the box -> get_status. " +
+        "Store manage_token safely; it cannot be recovered.",
     });
   }
 
-  if (method === "notifications/initialized") {
-    return null; // notifications get no response
+  if (method === "ping") {
+    return rpcResult(id, {});
   }
 
   if (method === "tools/list") {

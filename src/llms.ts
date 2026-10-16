@@ -20,10 +20,11 @@ export function llmsTxt(origin: string): string {
 
 ## MCP
 
-A stub remote MCP endpoint is at ${origin}/mcp: Streamable HTTP, JSON-RPC 2.0,
-single request/response only (no SSE streaming, no session resumption).
-Tools: create_monitor, get_status, list_heartbeats — thin wrappers over the
-REST API above, same validation and privacy rules.
+Remote MCP server: ${origin}/mcp (Streamable HTTP, stateless; plain JSON
+responses, no sessions; protocol versions 2025-06-18, 2025-03-26, 2024-11-05).
+No auth to connect; tools take the monitor's tokens as arguments.
+Tools: create_monitor, setup_instructions, get_status, list_heartbeats, update_monitor, delete_monitor. Same service layer, validation and privacy rules as the REST API.
+Typical flow: create_monitor -> setup_instructions -> run commands on the box -> get_status.
 
 ## Privacy
 
