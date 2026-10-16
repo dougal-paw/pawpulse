@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.workers.dougalpaw.pawpulse/pawpulse",
+  "title": "Paw Pulse",
+  "description": "Heartbeat and tokens/sec monitoring for self-hosted LLM servers (Ollama etc.), with down alerts.",
+  "version": "0.2.0",
+  "websiteUrl": "https://pawpulse.dougalpaw.workers.dev",
+  "repository": {
+    "url": "https://github.com/dougal-paw/pawpulse",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://pawpulse.dougalpaw.workers.dev/mcp"
+    }
+  ]
+}

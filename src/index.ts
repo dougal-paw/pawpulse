@@ -49,6 +49,8 @@ app.get("/privacy", (c) => c.html(privacyPage()));
 
 app.get("/openapi.json", (c) => c.json(openApiSpec(origin(c.req.url))));
 app.get("/llms.txt", (c) => c.text(llmsTxt(origin(c.req.url)), 200, { "content-type": "text/plain; charset=utf-8" }));
+// Proves domain ownership to the official MCP Registry (public key only).
+app.get("/.well-known/mcp-registry-auth", (c) => c.text("v=MCPv1; k=ed25519; p=SSZoTeQfEKO3gb/FIgvyhrc8rjDQ3ctJ/7p9cM9KXHo=", 200, { "content-type": "text/plain; charset=utf-8" }));
 app.get("/pawpulse.sh", (c) => c.text(PAWPULSE_SH, 200, { "content-type": "text/x-shellscript; charset=utf-8" }));
 
 app.get("/s/:id", async (c) => {
