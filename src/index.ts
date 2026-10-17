@@ -15,7 +15,7 @@ import {
 } from "./service.ts";
 import { DEMO_SVG } from "./static/demo-svg.ts";
 import { renderBadge, renderCustomBadge } from "./badge.ts";
-import { landingPage, privacyPage, statusPage, notFoundPage } from "./templates.ts";
+import { landingPage, privacyPage, statusPage, notFoundPage, ollamaGuidePage } from "./templates.ts";
 import { PAWPULSE_SH } from "./static/pawpulse-sh.ts";
 import { openApiSpec } from "./openapi.ts";
 import { llmsTxt } from "./llms.ts";
@@ -47,6 +47,13 @@ app.onError((err, c) => {
 app.get("/", (c) => c.html(landingPage()));
 app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+xml", "cache-control": "public, max-age=3600" }));
 app.get("/privacy", (c) => c.html(privacyPage()));
+app.get("/guides/monitor-ollama", (c) => c.html(ollamaGuidePage()));
+app.get("/robots.txt", (c) => c.text(`User-agent: *\nAllow: /\nSitemap: ${origin(c.req.url)}/sitemap.xml\n`));
+app.get("/sitemap.xml", (c) => {
+  const o = origin(c.req.url);
+  const urls = ["/", "/guides/monitor-ollama", "/privacy"].map((p) => `<url><loc>${o}${p}</loc></url>`).join("");
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, 200, { "content-type": "application/xml" });
+});
 
 app.get("/openapi.json", (c) => c.json(openApiSpec(origin(c.req.url))));
 const svgHeaders = { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" };

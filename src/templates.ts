@@ -57,6 +57,7 @@ function page(title: string, body: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <meta name="description" content="Paw Pulse: a push-based heartbeat and performance monitor for self-hosted LLM servers.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>${BASE_CSS}</style>
 </head>
 <body>
@@ -77,7 +78,7 @@ ${body.includes('class="hero"') ? body.slice(body.indexOf("<!--/hero-->")) : bod
 export function landingPage(): string {
   const body = `
 <header class="hero"><div class="hero-in">
-<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="#quick-start">Quick start</a><a href="/guides/monitor-ollama">Guide</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
 <h1>Your home AI box just died.<br><em>Find out in minutes, not days.</em></h1>
 <p class="tagline">Paw Pulse watches your Ollama, llama.cpp or vLLM server and alerts you the moment it goes down,
 gets slow, or comes back. No open ports, nothing to install but one small shell script.</p>
@@ -246,4 +247,104 @@ function escapeHtml(s: string): string {
 
 export function notFoundPage(): string {
   return page("Not found — Paw Pulse", `<h1>Not found</h1><p>This monitor doesn't exist, isn't public, or has been deleted.</p>`);
+}
+
+export function ollamaGuidePage(): string {
+  const body = `
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="/guides/monitor-ollama">Guide</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
+<h1>How to monitor Ollama and get an alert when it goes down</h1>
+<p class="tagline">A home Ollama box fails quietly: the service crashes after an update, the GPU drops off the bus,
+a model gets evicted and the next request takes a minute. Here's how to hear about it
+in Discord, Slack, Teams or Telegram within minutes, without opening a port.</p>
+
+<h2>The short version</h2>
+<ol>
+  <li>Create a monitor (one <code>curl</code>, no sign-up).</li>
+  <li>Put a small shell script on the Ollama box.</li>
+  <li>Run it every 5 minutes from cron or a systemd timer.</li>
+</ol>
+<p>If the heartbeats stop, or the script reports Ollama as unreachable, you get one alert.
+When it comes back, you get one more. That's it.</p>
+
+<h2>1. Create a monitor</h2>
+<pre><code>curl -X POST https://pawpulse.dougalpaw.workers.dev/v1/monitors \\
+  -H 'content-type: application/json' \\
+  -d '{"name":"home-ollama","grace_seconds":600,
+       "webhook_url":"https://discord.com/api/webhooks/…"}'</code></pre>
+<p>Use any webhook URL you like: Discord, Slack, Microsoft Teams, Google Chat, a Telegram bot
+<code>sendMessage</code> URL with <code>?chat_id=</code>, or any endpoint that accepts JSON (n8n, Home Assistant).
+The response contains <code>id</code>, <code>ingest_token</code> and <code>manage_token</code>. Save them now; they're shown once.</p>
+<p class="muted"><code>grace_seconds</code> is how long Paw Pulse waits without a heartbeat before calling it down.
+With a 5-minute schedule, 600 (two missed beats) avoids false alarms from one slow run.</p>
+
+<h2>2. Install the client</h2>
+<pre><code>sudo curl -o /usr/local/bin/pawpulse.sh https://pawpulse.dougalpaw.workers.dev/pawpulse.sh
+sudo chmod +x /usr/local/bin/pawpulse.sh</code></pre>
+<p>It's a POSIX <code>sh</code> script that needs only <code>curl</code>; read it first, it's short.
+Each run it asks your local Ollama for <code>/api/tags</code> and <code>/api/ps</code>, then posts ok/fail,
+the loaded model names and, if you turn it on, tokens/sec. It never sends your hostname, IP or prompts.</p>
+<p>Test it by hand:</p>
+<pre><code>PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; pawpulse.sh</code></pre>
+
+<h2>3. Schedule it</h2>
+<p><strong>cron</strong> (<code>crontab -e</code>):</p>
+<pre><code>*/5 * * * * PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
+<p><strong>systemd timer</strong>, if you prefer:</p>
+<pre><code># /etc/systemd/system/pawpulse.service
+[Service]
+Type=oneshot
+Environment=PAWPULSE_ID=&lt;id&gt;
+Environment=PAWPULSE_TOKEN=&lt;ingest_token&gt;
+ExecStart=/usr/local/bin/pawpulse.sh
+
+# /etc/systemd/system/pawpulse.timer
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target</code></pre>
+<pre><code>sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now pawpulse.timer</code></pre>
+
+<h2>Catch "alive but slow" too</h2>
+<p>A box that answers but generates at 2 tokens/sec is broken in practice (often it has fallen back from GPU to CPU).
+Turn on the speed probe and set a threshold:</p>
+<pre><code># in the cron line or systemd unit
+MEASURE_TPS=1 MEASURE_MODEL=llama3.2:3b
+
+# on the monitor (manage token)
+curl -X PATCH https://pawpulse.dougalpaw.workers.dev/v1/monitors/&lt;id&gt; \\
+  -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\
+  -d '{"slow_tps_threshold":10}'</code></pre>
+<p class="muted">The probe runs one tiny generation per beat, so pick a small model that's normally loaded.</p>
+
+<h2>llama.cpp, vLLM, LM Studio and others</h2>
+<p>Anything with an OpenAI-compatible <code>/v1/models</code> endpoint works. Set
+<code>LLM_KIND=openai</code> and <code>LLM_BASE_URL</code>, for example <code>http://127.0.0.1:8080</code> for
+llama.cpp's server or <code>http://127.0.0.1:8000</code> for vLLM.</p>
+
+<h2>Other ways to do it</h2>
+<p>Paw Pulse isn't the only option. A fair summary:</p>
+<ul>
+  <li><strong>Uptime Kuma</strong> (self-hosted). Great dashboard and many notification types. Its HTTP checks poll your
+  server, so Kuma needs to reach Ollama; it also has a Push monitor type you can feed from a script. Run it on a
+  different machine from Ollama, or it goes down with the box it's watching.</li>
+  <li><strong>Healthchecks.io</strong> (hosted or self-hosted). Excellent dead-man's-switch for cron jobs: ping a URL,
+  get alerted when pings stop. It doesn't know anything about LLMs, so model and tokens/sec checks are up to your script.</li>
+  <li><strong>Exposing Ollama and polling it</strong> from an external uptime service. Avoid this: Ollama's API has no
+  authentication, so opening port 11434 to the internet lets anyone use (and abuse) your GPU.</li>
+  <li><strong>Paw Pulse</strong>. Push-based like Healthchecks.io, but the client understands Ollama and OpenAI-compatible
+  servers: it reports loaded models, can alert on low tokens/sec and says <em>why</em> it's down (LLM unreachable vs no
+  heartbeat at all). Free during beta, open source, and usable from an AI agent via its <a href="/llms.txt">MCP server</a>.</li>
+</ul>
+
+<h2>FAQ</h2>
+<p><strong>Do I need an account?</strong> No. Monitors are anonymous: a random id plus two tokens. See <a href="/privacy">Privacy</a>.</p>
+<p><strong>Can I get alerts without Paw Pulse holding my webhook?</strong> Yes: leave <code>webhook_url</code> out and poll
+<code>/v1/monitors/&lt;id&gt;/status</code> from your own tooling, or embed the status badge.</p>
+<p><strong>Can my AI agent set this up?</strong> Yes. Point it at <code>https://pawpulse.dougalpaw.workers.dev/mcp</code>; it can
+create the monitor and give you the exact commands to run.</p>
+
+<p><a class="cta cta-main" href="/#quick-start" style="color:#1a0b1f">Set up a monitor &rarr;</a></p>
+`;
+  return page("How to monitor Ollama and get alerts when it goes down — Paw Pulse", body);
 }

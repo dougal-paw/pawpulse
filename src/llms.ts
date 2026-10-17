@@ -26,6 +26,10 @@ No auth to connect; tools take the monitor's tokens as arguments.
 Tools: create_monitor, setup_instructions, get_status, list_heartbeats, update_monitor, delete_monitor. Same service layer, validation and privacy rules as the REST API.
 Typical flow: create_monitor -> setup_instructions -> run commands on the box -> get_status.
 
+## Guides
+
+- ${origin}/guides/monitor-ollama — step-by-step: monitor Ollama (or llama.cpp/vLLM) with cron or a systemd timer, slow-speed alerts, comparison with Uptime Kuma and Healthchecks.io.
+
 ## Privacy
 
 See ${origin}/privacy. No cookies, no analytics, no IP logging. Webhook
