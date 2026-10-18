@@ -98,7 +98,7 @@ if [ "\$ok" = "true" ] && [ "\$MEASURE_TPS" = "1" ] && [ -n "\$MEASURE_MODEL" ];
   else
     gen_resp=\$(curl --noproxy "*" -fsS -m 30 "\$LLM_BASE_URL/api/generate" \\
       -H 'content-type: application/json' \\
-      -d "{\\"model\\":\\"\$MEASURE_MODEL\\",\\"prompt\\":\\"hello\\",\\"stream\\":false}" 2>/dev/null || true)
+      -d "{\\"model\\":\\"\$MEASURE_MODEL\\",\\"prompt\\":\\"hello\\",\\"stream\\":false,\\"options\\":{\\"num_predict\\":16}}" 2>/dev/null || true)
   fi
   gen_end=\$(now_ms)
   if [ -n "\$gen_resp" ] && [ "\$HAVE_JQ" = "1" ]; then
@@ -106,6 +106,15 @@ if [ "\$ok" = "true" ] && [ "\$MEASURE_TPS" = "1" ] && [ -n "\$MEASURE_MODEL" ];
     eval_duration=\$(printf '%s' "\$gen_resp" | jq -r '.eval_duration // empty')
     if [ -n "\$eval_count" ] && [ -n "\$eval_duration" ] && [ "\$eval_duration" != "0" ]; then
       tps_json=\$(awk -v c="\$eval_count" -v d="\$eval_duration" 'BEGIN { printf "%.2f", c / (d/1000000000) }')
+    fi
+    # OpenAI-compatible servers have no eval timing: use completion tokens over
+    # wall-clock time (includes prompt processing, so it reads a little low).
+    if [ "\$tps_json" = "null" ] && [ "\$LLM_KIND" = "openai" ]; then
+      completion_tokens=\$(printf '%s' "\$gen_resp" | jq -r '.usage.completion_tokens // empty')
+      gen_ms=\$((gen_end - gen_start))
+      if [ -n "\$completion_tokens" ] && [ "\$completion_tokens" != "0" ] && [ "\$gen_ms" -gt 0 ]; then
+        tps_json=\$(awk -v c="\$completion_tokens" -v d="\$gen_ms" 'BEGIN { printf "%.2f", c / (d/1000) }')
+      fi
     fi
   fi
 fi
