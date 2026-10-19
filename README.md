@@ -4,7 +4,7 @@ Push-based heartbeat and performance monitor for self-hosted LLM servers
 (Ollama, llama.cpp, vLLM, anything OpenAI-compatible). Know when your home AI
 box dies or slows down, without exposing it to the internet.
 
-Live instance: https://pawpulse.dougalpaw.workers.dev
+Live instance: https://pulse.dougalpaw.com
 
 ![Demo: Ollama fails, Paw Pulse posts a DOWN alert to Discord, then a recovery](design/demo.svg)
 
@@ -25,7 +25,7 @@ work for a NAS, a backup job or any cron task.
 
 ## Stack
 
-- Cloudflare Workers (free tier, `workers.dev`) + D1 + Cron Triggers.
+- Cloudflare Workers (free tier) + D1 + Cron Triggers.
 - TypeScript, [Hono](https://hono.dev) as a thin router.
 - No other runtime dependencies.
 
@@ -65,7 +65,7 @@ See `/openapi.json` for the full spec and `/llms.txt` for a terse summary.
 
 ## MCP
 
-`https://pawpulse.dougalpaw.workers.dev/mcp` is a remote MCP server (Streamable
+`https://pulse.dougalpaw.com/mcp` is a remote MCP server (Streamable
 HTTP). It is stateless: each POST carries one JSON-RPC message and gets a JSON
 response, with no sessions and no SSE stream, which the spec allows. It supports
 protocol versions 2025-06-18, 2025-03-26 and 2024-11-05.
@@ -76,7 +76,7 @@ service layer as the REST API. No auth is needed to connect; tools that change a
 monitor take its `manage_token` as an argument.
 
 ```json
-{ "mcpServers": { "pawpulse": { "type": "http", "url": "https://pawpulse.dougalpaw.workers.dev/mcp" } } }
+{ "mcpServers": { "pawpulse": { "type": "http", "url": "https://pulse.dougalpaw.com/mcp" } } }
 ```
 
 ## Alerts
