@@ -58,6 +58,7 @@ function page(title: string, body: string): string {
 <title>${title}</title>
 <meta name="description" content="Paw Pulse: a push-based heartbeat and performance monitor for self-hosted LLM servers.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="__ORIGIN____PATH__">
 <style>${BASE_CSS}</style>
 </head>
 <body>
@@ -106,7 +107,7 @@ gets slow, or comes back. No open ports, nothing to install but one small shell 
 <ol>
   <li>
     Create a monitor:
-    <pre><code>curl -X POST https://pawpulse.dougalpaw.workers.dev/v1/monitors \\
+    <pre><code>curl -X POST __ORIGIN__/v1/monitors \\
   -H 'content-type: application/json' \\
   -d '{"name":"home-ollama","grace_seconds":300,
        "webhook_url":"https://discord.com/api/webhooks/…"}'</code></pre>
@@ -115,13 +116,13 @@ gets slow, or comes back. No open ports, nothing to install but one small shell 
   </li>
   <li>
     Grab the client script and drop it on the box running your LLM server:
-    <pre><code>curl -o /usr/local/bin/pawpulse.sh https://pawpulse.dougalpaw.workers.dev/pawpulse.sh
+    <pre><code>curl -o /usr/local/bin/pawpulse.sh __ORIGIN__/pawpulse.sh
 chmod +x /usr/local/bin/pawpulse.sh</code></pre>
   </li>
   <li>
     Run it on a schedule (cron shown, systemd timers work the same way):
     <pre><code># every 5 minutes
-*/5 * * * * PAWPULSE_URL=https://pawpulse.dougalpaw.workers.dev PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
+*/5 * * * * PAWPULSE_URL=__ORIGIN__ PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; /usr/local/bin/pawpulse.sh</code></pre>
     Want the log from the demo above? Add <code>PAWPULSE_VERBOSE=1</code> and append
     <code>&gt;&gt; ~/pulse.log</code>, then <code>tail -f ~/pulse.log</code>.
     No LLM on this box? Set <code>LLM_KIND=none</code> for a plain heartbeat. It works for a NAS, a backup job or any cron task.
@@ -267,7 +268,7 @@ in Discord, Slack, Teams or Telegram within minutes, without opening a port.</p>
 When it comes back, you get one more. That's it.</p>
 
 <h2>1. Create a monitor</h2>
-<pre><code>curl -X POST https://pawpulse.dougalpaw.workers.dev/v1/monitors \\
+<pre><code>curl -X POST __ORIGIN__/v1/monitors \\
   -H 'content-type: application/json' \\
   -d '{"name":"home-ollama","grace_seconds":600,
        "webhook_url":"https://discord.com/api/webhooks/…"}'</code></pre>
@@ -278,7 +279,7 @@ The response contains <code>id</code>, <code>ingest_token</code> and <code>manag
 With a 5-minute schedule, 600 (two missed beats) avoids false alarms from one slow run.</p>
 
 <h2>2. Install the client</h2>
-<pre><code>sudo curl -o /usr/local/bin/pawpulse.sh https://pawpulse.dougalpaw.workers.dev/pawpulse.sh
+<pre><code>sudo curl -o /usr/local/bin/pawpulse.sh __ORIGIN__/pawpulse.sh
 sudo chmod +x /usr/local/bin/pawpulse.sh</code></pre>
 <p>It's a POSIX <code>sh</code> script that needs only <code>curl</code>; read it first, it's short.
 Each run it asks your local Ollama for <code>/api/tags</code> and <code>/api/ps</code>, then posts ok/fail,
@@ -312,7 +313,7 @@ Turn on the speed probe and set a threshold:</p>
 MEASURE_TPS=1 MEASURE_MODEL=llama3.2:3b
 
 # on the monitor (manage token)
-curl -X PATCH https://pawpulse.dougalpaw.workers.dev/v1/monitors/&lt;id&gt; \\
+curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
   -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\
   -d '{"slow_tps_threshold":10}'</code></pre>
 <p class="muted">The probe runs one tiny generation per beat, so pick a small model that's normally loaded.</p>
@@ -341,7 +342,7 @@ llama.cpp's server or <code>http://127.0.0.1:8000</code> for vLLM.</p>
 <p><strong>Do I need an account?</strong> No. Monitors are anonymous: a random id plus two tokens. See <a href="/privacy">Privacy</a>.</p>
 <p><strong>Can I get alerts without Paw Pulse holding my webhook?</strong> Yes: leave <code>webhook_url</code> out and poll
 <code>/v1/monitors/&lt;id&gt;/status</code> from your own tooling, or embed the status badge.</p>
-<p><strong>Can my AI agent set this up?</strong> Yes. Point it at <code>https://pawpulse.dougalpaw.workers.dev/mcp</code>; it can
+<p><strong>Can my AI agent set this up?</strong> Yes. Point it at <code>__ORIGIN__/mcp</code>; it can
 create the monitor and give you the exact commands to run.</p>
 
 <p><a class="cta cta-main" href="/#quick-start" style="color:#1a0b1f">Set up a monitor &rarr;</a></p>

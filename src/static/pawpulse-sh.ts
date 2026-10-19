@@ -1,6 +1,6 @@
 export const PAWPULSE_SH = `#!/bin/sh
 # pawpulse.sh — tiny heartbeat client for Paw Pulse.
-# https://pawpulse.dougalpaw.workers.dev
+# __ORIGIN__
 #
 # Probes a local Ollama or OpenAI-compatible server and sends a heartbeat.
 # With LLM_KIND=none it skips the probe: a plain "I am alive" heartbeat for
@@ -28,7 +28,7 @@ export const PAWPULSE_SH = `#!/bin/sh
 
 set -eu
 
-PAWPULSE_URL="\${PAWPULSE_URL:-https://pawpulse.dougalpaw.workers.dev}"
+PAWPULSE_URL="\${PAWPULSE_URL:-__ORIGIN__}"
 LLM_BASE_URL="\${LLM_BASE_URL:-http://127.0.0.1:11434}"
 LLM_KIND="\${LLM_KIND:-ollama}"
 MEASURE_TPS="\${MEASURE_TPS:-0}"

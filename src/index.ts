@@ -35,6 +35,16 @@ function origin(url: string): string {
   return new URL(url).origin;
 }
 
+/** The public origin: CANONICAL_ORIGIN if configured, else wherever the request came in. */
+function publicOrigin(c: { env: Env; req: { url: string } }): string {
+  return (c.env.CANONICAL_ORIGIN || origin(c.req.url)).replace(/\/$/, "");
+}
+
+/** Fill the __ORIGIN__ / __PATH__ placeholders in pages and the client script. */
+function fill(c: { env: Env; req: { url: string } }, text: string): string {
+  return text.replaceAll("__ORIGIN__", publicOrigin(c)).replaceAll("__PATH__", new URL(c.req.url).pathname);
+}
+
 app.onError((err, c) => {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status as 400 | 401 | 404 | 429);
   if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
@@ -44,31 +54,31 @@ app.onError((err, c) => {
 
 // ---- Pages --------------------------------------------------------------
 
-app.get("/", (c) => c.html(landingPage()));
+app.get("/", (c) => c.html(fill(c, landingPage())));
 app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+xml", "cache-control": "public, max-age=3600" }));
-app.get("/privacy", (c) => c.html(privacyPage()));
-app.get("/guides/monitor-ollama", (c) => c.html(ollamaGuidePage()));
-app.get("/robots.txt", (c) => c.text(`User-agent: *\nAllow: /\nSitemap: ${origin(c.req.url)}/sitemap.xml\n`));
+app.get("/privacy", (c) => c.html(fill(c, privacyPage())));
+app.get("/guides/monitor-ollama", (c) => c.html(fill(c, ollamaGuidePage())));
+app.get("/robots.txt", (c) => c.text(`User-agent: *\nAllow: /\nSitemap: ${publicOrigin(c)}/sitemap.xml\n`));
 app.get("/sitemap.xml", (c) => {
-  const o = origin(c.req.url);
+  const o = publicOrigin(c);
   const urls = ["/", "/guides/monitor-ollama", "/privacy"].map((p) => `<url><loc>${o}${p}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, 200, { "content-type": "application/xml" });
 });
 
-app.get("/openapi.json", (c) => c.json(openApiSpec(origin(c.req.url))));
+app.get("/openapi.json", (c) => c.json(openApiSpec(publicOrigin(c))));
 const svgHeaders = { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" };
 app.get("/icon.svg", (c) => c.body(ICON_SVG, 200, svgHeaders));
 app.get("/favicon.svg", (c) => c.body(ICON_SVG, 200, svgHeaders));
 app.get("/favicon.ico", (c) => c.redirect("/favicon.svg", 301));
-app.get("/llms.txt", (c) => c.text(llmsTxt(origin(c.req.url)), 200, { "content-type": "text/plain; charset=utf-8" }));
+app.get("/llms.txt", (c) => c.text(llmsTxt(publicOrigin(c)), 200, { "content-type": "text/plain; charset=utf-8" }));
 // Proves domain ownership to the official MCP Registry (public key only).
 app.get("/.well-known/mcp-registry-auth", (c) => c.text("v=MCPv1; k=ed25519; p=SSZoTeQfEKO3gb/FIgvyhrc8rjDQ3ctJ/7p9cM9KXHo=", 200, { "content-type": "text/plain; charset=utf-8" }));
-app.get("/pawpulse.sh", (c) => c.text(PAWPULSE_SH, 200, { "content-type": "text/x-shellscript; charset=utf-8" }));
+app.get("/pawpulse.sh", (c) => c.text(fill(c, PAWPULSE_SH), 200, { "content-type": "text/x-shellscript; charset=utf-8" }));
 
 app.get("/s/:id", async (c) => {
   const status = await getPublicMonitorForPage(c.env, c.req.param("id"), Date.now());
-  if (!status) return c.html(notFoundPage(), 404);
-  return c.html(statusPage(status));
+  if (!status) return c.html(fill(c, notFoundPage()), 404);
+  return c.html(fill(c, statusPage(status)));
 });
 
 app.get("/badge/:id", async (c) => {
@@ -88,7 +98,7 @@ app.get("/badge/:id", async (c) => {
 
 app.post("/v1/monitors", async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const result = await createMonitor(c.env, origin(c.req.url), body, Date.now());
+  const result = await createMonitor(c.env, publicOrigin(c), body, Date.now());
   return c.json(result);
 });
 
@@ -131,7 +141,7 @@ app.post("/mcp", async (c) => {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return c.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error: expected one JSON-RPC message" } }, 400);
   }
-  const response = await handleMcpRequest(c.env, origin(c.req.url), body);
+  const response = await handleMcpRequest(c.env, publicOrigin(c), body);
   if (response === null) return c.body(null, 202); // notification or response: no content
   return c.json(response);
 });
@@ -143,7 +153,7 @@ app.notFound((c) => {
   if (c.req.path.startsWith("/v1/") || c.req.path.startsWith("/mcp")) {
     return c.json({ error: "not found" }, 404);
   }
-  return c.html(notFoundPage(), 404);
+  return c.html(fill(c, notFoundPage()), 404);
 });
 
 export default {
