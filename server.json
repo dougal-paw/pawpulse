@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "dev.workers.dougalpaw.pawpulse/pawpulse",
+  "name": "com.dougalpaw/pawpulse",
   "title": "Paw Pulse",
   "description": "Heartbeat and tokens/sec monitoring for self-hosted LLM servers (Ollama etc.), with down alerts.",
   "version": "0.3.0",
