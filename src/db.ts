@@ -9,12 +9,14 @@ export interface MonitorRow {
   manage_token: string;
   grace_seconds: number;
   slow_tps_threshold: number | null;
+  min_gpu_pct: number | null;
   webhook_url: string | null;
   is_public: number;
   created_at: number;
   last_beat_at: number | null;
   last_ok: number | null;
   last_tps: number | null;
+  last_gpu_pct: number | null;
   last_latency_ms: number | null;
   last_models: string | null;
   last_note: string | null;
@@ -31,6 +33,7 @@ export interface BeatRow {
   models: string | null;
   tokens_per_sec: number | null;
   latency_ms: number | null;
+  gpu_offload_pct: number | null;
   note: string | null;
 }
 
@@ -43,6 +46,7 @@ export interface NewMonitor {
   manage_token: string;
   grace_seconds: number;
   slow_tps_threshold: number | null;
+  min_gpu_pct: number | null;
   webhook_url: string | null;
   is_public: boolean;
   created_at: number;
@@ -52,9 +56,9 @@ export async function insertMonitor(db: D1Database, m: NewMonitor): Promise<void
   await db
     .prepare(
       `INSERT INTO monitors
-        (id, name, ingest_token, manage_token, grace_seconds, slow_tps_threshold,
+        (id, name, ingest_token, manage_token, grace_seconds, slow_tps_threshold, min_gpu_pct,
          webhook_url, is_public, created_at, state)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')`,
     )
     .bind(
       m.id,
@@ -63,6 +67,7 @@ export async function insertMonitor(db: D1Database, m: NewMonitor): Promise<void
       m.manage_token,
       m.grace_seconds,
       m.slow_tps_threshold,
+      m.min_gpu_pct,
       m.webhook_url,
       m.is_public ? 1 : 0,
       m.created_at,
@@ -86,8 +91,8 @@ export async function recordBeat(
   const statements = [
     db
       .prepare(
-        `INSERT INTO beats (monitor_id, created_at, ok, models, tokens_per_sec, latency_ms, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO beats (monitor_id, created_at, ok, models, tokens_per_sec, latency_ms, gpu_offload_pct, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         monitorId,
@@ -96,6 +101,7 @@ export async function recordBeat(
         beat.models ? JSON.stringify(beat.models) : null,
         beat.tokens_per_sec,
         beat.latency_ms,
+        beat.gpu_offload_pct,
         beat.note,
       ),
     db
@@ -111,7 +117,7 @@ export async function recordBeat(
     statements.push(
       db
         .prepare(
-          `UPDATE monitors SET last_beat_at = ?, last_ok = ?, last_tps = ?, last_latency_ms = ?,
+          `UPDATE monitors SET last_beat_at = ?, last_ok = ?, last_tps = ?, last_gpu_pct = ?, last_latency_ms = ?,
              last_models = ?, last_note = ?, state = ?, last_state_change_at = ?
            WHERE id = ?`,
         )
@@ -119,6 +125,7 @@ export async function recordBeat(
           nowMs,
           beat.ok ? 1 : 0,
           beat.tokens_per_sec,
+          beat.gpu_offload_pct,
           beat.latency_ms,
           beat.models ? JSON.stringify(beat.models) : null,
           beat.note,
@@ -131,7 +138,7 @@ export async function recordBeat(
     statements.push(
       db
         .prepare(
-          `UPDATE monitors SET last_beat_at = ?, last_ok = ?, last_tps = ?, last_latency_ms = ?,
+          `UPDATE monitors SET last_beat_at = ?, last_ok = ?, last_tps = ?, last_gpu_pct = ?, last_latency_ms = ?,
              last_models = ?, last_note = ?, state = ?
            WHERE id = ?`,
         )
@@ -139,6 +146,7 @@ export async function recordBeat(
           nowMs,
           beat.ok ? 1 : 0,
           beat.tokens_per_sec,
+          beat.gpu_offload_pct,
           beat.latency_ms,
           beat.models ? JSON.stringify(beat.models) : null,
           beat.note,
@@ -175,6 +183,7 @@ export interface PatchFields {
   name?: string;
   grace_seconds?: number;
   slow_tps_threshold?: number | null;
+  min_gpu_pct?: number | null;
   webhook_url?: string | null;
   public?: boolean;
 }
@@ -194,6 +203,10 @@ export async function patchMonitor(db: D1Database, id: string, fields: PatchFiel
   if (fields.slow_tps_threshold !== undefined) {
     sets.push("slow_tps_threshold = ?");
     values.push(fields.slow_tps_threshold);
+  }
+  if (fields.min_gpu_pct !== undefined) {
+    sets.push("min_gpu_pct = ?");
+    values.push(fields.min_gpu_pct);
   }
   if (fields.webhook_url !== undefined) {
     sets.push("webhook_url = ?");

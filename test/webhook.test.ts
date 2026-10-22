@@ -46,3 +46,8 @@ test("teams gets an adaptive card", () => {
   const b = JSON.parse(buildRequest("https://x.webhook.office.com/w", "box", "recovery", "up", d, 0).body);
   assert.equal(b.attachments[0].content.type, "AdaptiveCard");
 });
+
+test("alertMessage: slow because of CPU fallback names the GPU share", () => {
+  const msg = alertMessage("box", "slow", "slow", { lastOk: true, lastTps: 3, slowTpsThreshold: null, lastGpuPct: 12, minGpuPct: 90, graceSeconds: 300 });
+  assert.match(msg, /12% of the model is on the GPU/);
+});

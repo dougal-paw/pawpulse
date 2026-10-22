@@ -126,3 +126,12 @@ test("alertToFire: recovery from slow to up fires 'recovery'", () => {
 test("alertToFire: up to up fires nothing", () => {
   assert.equal(alertToFire("up", "up"), null);
 });
+
+test("computeState: gpu offload below floor -> slow", () => {
+  const base = { last_beat_at: NOW - 10_000, last_ok: true, last_tps: 40, slow_tps_threshold: 10, grace_seconds: 300 };
+  assert.equal(computeState(NOW, { ...base, last_gpu_pct: 20, min_gpu_pct: 90 }), "slow");
+  assert.equal(computeState(NOW, { ...base, last_gpu_pct: 100, min_gpu_pct: 90 }), "up");
+  // no report (nothing loaded, or no jq) never trips the floor
+  assert.equal(computeState(NOW, { ...base, last_gpu_pct: null, min_gpu_pct: 90 }), "up");
+  assert.equal(computeState(NOW, { ...base, last_gpu_pct: 20, min_gpu_pct: null }), "up");
+});

@@ -80,8 +80,6 @@ else
       [ -z "\$models_json" ] && models_json="[]"
     fi
   fi
-  # /api/ps tells us what's actually loaded right now; best-effort, ignore failures.
-  curl --noproxy "*" -fsS -m 5 "\$LLM_BASE_URL/api/ps" >/dev/null 2>&1 || true
 fi
 
 end_ms=\$(now_ms)
@@ -119,7 +117,19 @@ if [ "\$ok" = "true" ] && [ "\$MEASURE_TPS" = "1" ] && [ -n "\$MEASURE_MODEL" ];
   fi
 fi
 
-body="{\\"ok\\":\$ok,\\"models\\":\$models_json,\\"tokens_per_sec\\":\$tps_json,\\"latency_ms\\":\$latency_json"
+# GPU offload (Ollama + jq): /api/ps lists loaded models with size and size_vram.
+# Report the lowest VRAM share across them; under 100 means part runs on CPU.
+# Checked after the tps probe so a model is likely loaded.
+gpu_json="null"
+if [ "\$ok" = "true" ] && [ "\$LLM_KIND" = "ollama" ] && [ "\$HAVE_JQ" = "1" ]; then
+  ps_resp=\$(curl --noproxy "*" -fsS -m 5 "\$LLM_BASE_URL/api/ps" 2>/dev/null || true)
+  if [ -n "\$ps_resp" ]; then
+    gpu=\$(printf '%s' "\$ps_resp" | jq -r '[.models[]? | select((.size // 0) > 0) | ((.size_vram // 0) * 1000 / .size | floor) / 10] | min // empty' 2>/dev/null || true)
+    [ -n "\$gpu" ] && gpu_json="\$gpu"
+  fi
+fi
+
+body="{\\"ok\\":\$ok,\\"models\\":\$models_json,\\"tokens_per_sec\\":\$tps_json,\\"latency_ms\\":\$latency_json,\\"gpu_offload_pct\\":\$gpu_json"
 if [ -n "\$note" ]; then
   body="\$body,\\"note\\":\\"\$note\\""
 fi

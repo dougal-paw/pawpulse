@@ -49,14 +49,16 @@ nav a { margin-right: 1rem; font-size: .9rem; }
 .tile span { opacity: .8; font-size: .93rem; }
 `;
 
-function page(title: string, body: string): string {
+const DEFAULT_DESCRIPTION = "Paw Pulse: a push-based heartbeat and performance monitor for self-hosted LLM servers.";
+
+function page(title: string, body: string, description = DEFAULT_DESCRIPTION): string {
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<meta name="description" content="Paw Pulse: a push-based heartbeat and performance monitor for self-hosted LLM servers.">
+<meta name="description" content="${escapeHtml(description)}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="__ORIGIN____PATH__">
 <style>${BASE_CSS}</style>
@@ -144,8 +146,9 @@ else at <code>/v1/monitors/&lt;id&gt;/status</code> or embed the <code>/badge/&l
 
 <h2>What it checks</h2>
 <p>The client probes your local Ollama (<code>/api/tags</code>, <code>/api/ps</code>) or any
-OpenAI-compatible <code>/v1/models</code> endpoint, reports which models are loaded, and optionally
-times a tiny generation to estimate tokens/sec. The tokens/sec probe is <strong>off by default</strong>
+OpenAI-compatible <code>/v1/models</code> endpoint, reports which models are installed, and optionally
+times a tiny generation to estimate tokens/sec. On Ollama (with <code>jq</code> installed) it also reports how much of the
+loaded model sits in GPU memory, so you can <a href="/guides/ollama-cpu-fallback">get an alert when Ollama falls back to CPU</a>. The tokens/sec probe is <strong>off by default</strong>
 since it costs a little compute on your box.</p>
 
 <h2>For agents &amp; scripts</h2>
@@ -228,6 +231,7 @@ export function statusPage(status: StatusResult): string {
 <div class="card">
   <p><strong>Last heartbeat:</strong> ${status.last_beat_at ?? "never"}</p>
   <p><strong>Tokens/sec (last):</strong> ${status.last_tps ?? "—"}</p>
+  ${status.last_gpu_pct != null ? `<p><strong>GPU offload (last):</strong> ${Math.round(status.last_gpu_pct)}%</p>` : ""}
   <p><strong>Latency (last):</strong> ${status.last_latency_ms != null ? status.last_latency_ms + " ms" : "—"}</p>
   <p><strong>Uptime (24h):</strong> ${uptime}</p>
   ${status.last_note ? `<p><strong>Note:</strong> ${escapeHtml(status.last_note)}</p>` : ""}
@@ -283,7 +287,7 @@ With a 5-minute schedule, 600 (two missed beats) avoids false alarms from one sl
 sudo chmod +x /usr/local/bin/pawpulse.sh</code></pre>
 <p>It's a POSIX <code>sh</code> script that needs only <code>curl</code>; read it first, it's short.
 Each run it asks your local Ollama for <code>/api/tags</code> and <code>/api/ps</code>, then posts ok/fail,
-the loaded model names and, if you turn it on, tokens/sec. It never sends your hostname, IP or prompts.</p>
+the installed model names, the share of the loaded model that's on the GPU (needs <code>jq</code>) and, if you turn it on, tokens/sec. It never sends your hostname, IP or prompts.</p>
 <p>Test it by hand:</p>
 <pre><code>PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; pawpulse.sh</code></pre>
 
@@ -317,6 +321,8 @@ curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
   -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\
   -d '{"slow_tps_threshold":10}'</code></pre>
 <p class="muted">The probe runs one tiny generation per beat, so pick a small model that's normally loaded.</p>
+<p>Or catch the CPU fallback directly, without a speed probe: set <code>{"min_gpu_pct":90}</code> on the monitor.
+See <a href="/guides/ollama-cpu-fallback">Detect when Ollama falls back to CPU</a>.</p>
 
 <h2>llama.cpp, vLLM, LM Studio and others</h2>
 <p>Anything with an OpenAI-compatible <code>/v1/models</code> endpoint works. Set
@@ -334,7 +340,7 @@ llama.cpp's server or <code>http://127.0.0.1:8000</code> for vLLM.</p>
   <li><strong>Exposing Ollama and polling it</strong> from an external uptime service. Avoid this: Ollama's API has no
   authentication, so opening port 11434 to the internet lets anyone use (and abuse) your GPU.</li>
   <li><strong>Paw Pulse</strong>. Push-based like Healthchecks.io, but the client understands Ollama and OpenAI-compatible
-  servers: it reports loaded models, can alert on low tokens/sec and says <em>why</em> it's down (LLM unreachable vs no
+  servers: it reports installed models and GPU offload, can alert on low tokens/sec or a CPU fallback, and says <em>why</em> it's down (LLM unreachable vs no
   heartbeat at all). Free during beta, open source, and usable from an AI agent via its <a href="/llms.txt">MCP server</a>.</li>
 </ul>
 
@@ -348,4 +354,60 @@ create the monitor and give you the exact commands to run.</p>
 <p><a class="cta cta-main" href="/#quick-start" style="color:#1a0b1f">Set up a monitor &rarr;</a></p>
 `;
   return page("How to monitor Ollama and get alerts when it goes down — Paw Pulse", body);
+}
+
+export function cpuFallbackGuidePage(): string {
+  const body = `
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="/guides/monitor-ollama">Guide</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
+<h1>Detect when Ollama falls back to CPU</h1>
+<p class="tagline">Ollama doesn't fail when it can't use your GPU. It quietly runs the model on the CPU instead, and
+replies that took a second now take a minute. Here's how to spot it, and how to get an alert when it happens.</p>
+
+<h2>Check by hand: <code>ollama ps</code></h2>
+<p>With a model loaded, run <code>ollama ps</code> and look at the <code>PROCESSOR</code> column:</p>
+<pre><code>NAME           ID            SIZE     PROCESSOR          UNTIL
+llama3.1:8b    46e0c10c039e  6.2 GB   100% GPU           4 minutes from now
+qwen2.5:14b    7cdf5a0187d5  11 GB    48%/52% CPU/GPU    4 minutes from now</code></pre>
+<p><code>100% GPU</code> is what you want. A CPU/GPU split means part of the model didn't fit in GPU memory;
+<code>100% CPU</code> means the GPU isn't being used at all.</p>
+<p>The same numbers come from the API. <code>GET /api/ps</code> lists each loaded model with <code>size</code>
+(bytes in memory) and <code>size_vram</code> (bytes on the GPU):</p>
+<pre><code>curl -s http://127.0.0.1:11434/api/ps | jq '.models[] | {name, gpu_pct: (100 * .size_vram / .size | floor)}'</code></pre>
+
+<h2>Common causes</h2>
+<ul>
+  <li><strong>The model (plus its context) doesn't fit in VRAM.</strong> A bigger model, a larger quantisation or a
+  longer context window (<code>num_ctx</code>) all need more memory; Ollama offloads what doesn't fit to the CPU.</li>
+  <li><strong>Something else is using the GPU</strong>: another model still loaded, a game, a second inference server.</li>
+  <li><strong>The driver broke.</strong> After a kernel or driver update, or in a container started without GPU access,
+  Ollama can't see the GPU and runs everything on the CPU. The Ollama server log says which GPU, if any, it found at start-up.</li>
+</ul>
+
+<h2>Get an alert when it happens</h2>
+<p><a href="/guides/monitor-ollama">Paw Pulse</a> is a free, push-based monitor for home LLM servers. Its client script
+runs from cron on the Ollama box, reads <code>/api/ps</code> and reports the <em>lowest</em> GPU share across loaded models
+as <code>gpu_offload_pct</code>. Set a floor and you get one "slow" alert when it drops below, and one more when it recovers.</p>
+<ol>
+  <li>Set up a monitor and the client: follow the <a href="/guides/monitor-ollama">Ollama monitoring guide</a> (no sign-up, about five minutes).
+  Install <code>jq</code> on the box (<code>apt install jq</code>); the GPU check needs it.</li>
+  <li>Set the floor on the monitor:
+<pre><code>curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
+  -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\
+  -d '{"min_gpu_pct":90}'</code></pre></li>
+</ol>
+<p>The alert in Discord, Slack, Teams, Telegram or Google Chat reads like:</p>
+<pre><code>🟠 home-ollama is SLOW: only 48% of the model is on the GPU (your floor is 90%). It has probably fallen back to CPU.</code></pre>
+
+<h2>Things to know</h2>
+<ul>
+  <li><strong>It only sees loaded models.</strong> If nothing is loaded when the script runs, there's no number and no alert.
+  Turn on the speed probe (<code>MEASURE_TPS=1 MEASURE_MODEL=…</code>) to load a model on every beat; the GPU check runs after it.</li>
+  <li><strong>Pick the floor to suit your setup.</strong> If a model you use on purpose is always split across CPU and GPU,
+  set the floor below its usual share, or the monitor will stay slow.</li>
+  <li>Paw Pulse is open source (MIT), needs no account and never sends your prompts, hostname or IP.
+  Read the <a href="/pawpulse.sh">client script</a> before you run it.</li>
+</ul>
+`;
+  return page("Detect when Ollama falls back to CPU (and get an alert) — Paw Pulse", body,
+    "How to tell if Ollama is running on CPU instead of GPU with ollama ps or /api/ps, the common causes, and how to get an alert when it happens.");
 }

@@ -14,6 +14,7 @@ export interface CreateMonitorInput {
   name?: unknown;
   grace_seconds?: unknown;
   slow_tps_threshold?: unknown;
+  min_gpu_pct?: unknown;
   webhook_url?: unknown;
   public?: unknown;
 }
@@ -22,6 +23,7 @@ export interface ValidatedMonitorFields {
   name: string;
   grace_seconds: number;
   slow_tps_threshold: number | null;
+  min_gpu_pct: number | null;
   webhook_url: string | null;
   public: boolean;
 }
@@ -53,6 +55,15 @@ function validateSlowTpsThreshold(value: unknown): number | null {
     throw new ValidationError("slow_tps_threshold must be a positive number");
   }
   return t;
+}
+
+function validateMinGpuPct(value: unknown): number | null {
+  if (value === null) return null;
+  const p = Number(value);
+  if (!Number.isFinite(p) || p <= 0 || p > 100) {
+    throw new ValidationError("min_gpu_pct must be a number above 0 and at most 100");
+  }
+  return p;
 }
 
 function validateWebhookUrl(value: unknown): string | null {
@@ -98,13 +109,15 @@ export function validateCreateMonitor(input: CreateMonitorInput): ValidatedMonit
     input.webhook_url === undefined ? null : validateWebhookUrl(input.webhook_url);
   const isPublic = input.public === undefined ? false : validatePublic(input.public);
 
-  return { name, grace_seconds, slow_tps_threshold, webhook_url, public: isPublic };
+  const min_gpu_pct = input.min_gpu_pct === undefined ? null : validateMinGpuPct(input.min_gpu_pct);
+  return { name, grace_seconds, slow_tps_threshold, min_gpu_pct, webhook_url, public: isPublic };
 }
 
 export interface PatchMonitorInput {
   name?: unknown;
   grace_seconds?: unknown;
   slow_tps_threshold?: unknown;
+  min_gpu_pct?: unknown;
   webhook_url?: unknown;
   public?: unknown;
 }
@@ -123,6 +136,7 @@ export function validatePatchMonitor(
   if (input.slow_tps_threshold !== undefined) {
     out.slow_tps_threshold = validateSlowTpsThreshold(input.slow_tps_threshold);
   }
+  if (input.min_gpu_pct !== undefined) out.min_gpu_pct = validateMinGpuPct(input.min_gpu_pct);
   if (input.webhook_url !== undefined) out.webhook_url = validateWebhookUrl(input.webhook_url);
   if (input.public !== undefined) out.public = validatePublic(input.public);
 
@@ -138,6 +152,7 @@ export interface BeatInput {
   models?: unknown;
   tokens_per_sec?: unknown;
   latency_ms?: unknown;
+  gpu_offload_pct?: unknown;
   note?: unknown;
 }
 
@@ -146,6 +161,7 @@ export interface ValidatedBeat {
   models: string[] | null;
   tokens_per_sec: number | null;
   latency_ms: number | null;
+  gpu_offload_pct: number | null;
   note: string | null;
 }
 
@@ -186,6 +202,15 @@ export function validateBeat(input: BeatInput): ValidatedBeat {
     latency_ms = l;
   }
 
+  let gpu_offload_pct: number | null = null;
+  if (input.gpu_offload_pct !== undefined && input.gpu_offload_pct !== null) {
+    const g = Number(input.gpu_offload_pct);
+    if (!Number.isFinite(g) || g < 0 || g > 100) {
+      throw new ValidationError("gpu_offload_pct must be a number from 0 to 100");
+    }
+    gpu_offload_pct = g;
+  }
+
   let note: string | null = null;
   if (input.note !== undefined && input.note !== null) {
     if (typeof input.note !== "string") {
@@ -197,5 +222,5 @@ export function validateBeat(input: BeatInput): ValidatedBeat {
     note = input.note;
   }
 
-  return { ok: input.ok, models, tokens_per_sec, latency_ms, note };
+  return { ok: input.ok, models, tokens_per_sec, latency_ms, gpu_offload_pct, note };
 }

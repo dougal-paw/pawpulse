@@ -9,6 +9,8 @@ export interface AlertDetail {
   lastOk: boolean | null;
   lastTps: number | null;
   slowTpsThreshold: number | null;
+  lastGpuPct?: number | null;
+  minGpuPct?: number | null;
   graceSeconds: number;
 }
 
@@ -35,6 +37,9 @@ export function alertMessage(
     return d.lastOk === false
       ? `🔴 ${n} is DOWN: the box checked in, but its LLM server isn't answering.`
       : `🔴 ${n} is DOWN: no heartbeat for over ${d.graceSeconds}s.`;
+  }
+  if (d.minGpuPct != null && d.lastGpuPct != null && d.lastGpuPct < d.minGpuPct) {
+    return `🟠 ${n} is SLOW: only ${Math.round(d.lastGpuPct)}% of the model is on the GPU (your floor is ${d.minGpuPct}%). It has probably fallen back to CPU.`;
   }
   const limit = d.slowTpsThreshold !== null ? ` (your threshold is ${d.slowTpsThreshold})` : "";
   return `🟠 ${n} is SLOW: ${d.lastTps ?? "?"} tok/s${limit}.`;

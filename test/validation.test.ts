@@ -102,3 +102,18 @@ test("validateBeat: rejects negative tokens_per_sec", () => {
 test("validateBeat: rejects non-array models", () => {
   assert.throws(() => validateBeat({ ok: true, models: "llama3" }), ValidationError);
 });
+
+test("validateBeat: gpu_offload_pct range", () => {
+  assert.equal(validateBeat({ ok: true, gpu_offload_pct: 57.5 }).gpu_offload_pct, 57.5);
+  assert.equal(validateBeat({ ok: true }).gpu_offload_pct, null);
+  assert.throws(() => validateBeat({ ok: true, gpu_offload_pct: 101 }), ValidationError);
+  assert.throws(() => validateBeat({ ok: true, gpu_offload_pct: -1 }), ValidationError);
+});
+
+test("validateCreateMonitor / validatePatchMonitor: min_gpu_pct", () => {
+  assert.equal(validateCreateMonitor({ min_gpu_pct: 90 }).min_gpu_pct, 90);
+  assert.equal(validateCreateMonitor({}).min_gpu_pct, null);
+  assert.throws(() => validateCreateMonitor({ min_gpu_pct: 0 }), ValidationError);
+  assert.equal(validatePatchMonitor({ min_gpu_pct: null }).min_gpu_pct, null);
+  assert.throws(() => validatePatchMonitor({ min_gpu_pct: 150 }), ValidationError);
+});

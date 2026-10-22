@@ -12,6 +12,10 @@ export interface StateInput {
   last_tps: number | null;
   /** configured slow threshold, or null if not configured. */
   slow_tps_threshold: number | null;
+  /** GPU offload % (0-100) reported on the last beat, or null. */
+  last_gpu_pct?: number | null;
+  /** configured GPU offload floor, or null if not configured. */
+  min_gpu_pct?: number | null;
   grace_seconds: number;
 }
 
@@ -32,6 +36,10 @@ export function computeState(nowMs: number, m: StateInput): MonitorState {
     m.last_tps != null &&
     m.last_tps < m.slow_tps_threshold
   ) {
+    return "slow";
+  }
+
+  if (m.min_gpu_pct != null && m.last_gpu_pct != null && m.last_gpu_pct < m.min_gpu_pct) {
     return "slow";
   }
 
