@@ -23,6 +23,14 @@ stop arriving within the configured grace period, the monitor flips to
 No LLM on the box? `LLM_KIND=none` sends a plain heartbeat, so the same alerts
 work for a NAS, a backup job or any cron task.
 
+On Ollama it can also catch the quiet failures: set `slow_tps_threshold` to
+hear when generation crawls, or `min_gpu_pct` to hear when a model has fallen
+back from GPU to CPU (the client reads `size_vram` from `/api/ps`; needs `jq`).
+
+Guides:
+- [How to monitor Ollama and get an alert when it goes down](https://pulse.dougalpaw.com/guides/monitor-ollama)
+- [Detect when Ollama falls back to CPU](https://pulse.dougalpaw.com/guides/ollama-cpu-fallback)
+
 ## Stack
 
 - Cloudflare Workers (free tier) + D1 + Cron Triggers.

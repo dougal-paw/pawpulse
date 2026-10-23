@@ -59,6 +59,9 @@ app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+x
 app.get("/privacy", (c) => c.html(fill(c, privacyPage())));
 app.get("/guides/monitor-ollama", (c) => c.html(fill(c, ollamaGuidePage())));
 app.get("/guides/ollama-cpu-fallback", (c) => c.html(fill(c, cpuFallbackGuidePage())));
+// IndexNow (Bing, Yandex and others): the key is public by design; it proves we control this host.
+const INDEXNOW_KEY = "fa9a7c866bb2c01f8344e6b52e2ef3ad";
+app.get(`/${INDEXNOW_KEY}.txt`, (c) => c.text(INDEXNOW_KEY));
 app.get("/robots.txt", (c) => c.text(`User-agent: *\nAllow: /\nSitemap: ${publicOrigin(c)}/sitemap.xml\n`));
 app.get("/sitemap.xml", (c) => {
   const o = publicOrigin(c);
