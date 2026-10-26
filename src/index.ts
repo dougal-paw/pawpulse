@@ -15,7 +15,7 @@ import {
 } from "./service.ts";
 import { DEMO_SVG } from "./static/demo-svg.ts";
 import { renderBadge, renderCustomBadge } from "./badge.ts";
-import { landingPage, privacyPage, statusPage, notFoundPage, ollamaGuidePage, cpuFallbackGuidePage } from "./templates.ts";
+import { landingPage, privacyPage, statusPage, notFoundPage, ollamaGuidePage, cpuFallbackGuidePage, openaiServerGuidePage } from "./templates.ts";
 import { PAWPULSE_SH } from "./static/pawpulse-sh.ts";
 import { openApiSpec } from "./openapi.ts";
 import { llmsTxt } from "./llms.ts";
@@ -59,13 +59,14 @@ app.get("/demo.svg", (c) => c.body(DEMO_SVG, 200, { "content-type": "image/svg+x
 app.get("/privacy", (c) => c.html(fill(c, privacyPage())));
 app.get("/guides/monitor-ollama", (c) => c.html(fill(c, ollamaGuidePage())));
 app.get("/guides/ollama-cpu-fallback", (c) => c.html(fill(c, cpuFallbackGuidePage())));
+app.get("/guides/monitor-llama-cpp-vllm", (c) => c.html(fill(c, openaiServerGuidePage())));
 // IndexNow (Bing, Yandex and others): the key is public by design; it proves we control this host.
 const INDEXNOW_KEY = "fa9a7c866bb2c01f8344e6b52e2ef3ad";
 app.get(`/${INDEXNOW_KEY}.txt`, (c) => c.text(INDEXNOW_KEY));
 app.get("/robots.txt", (c) => c.text(`User-agent: *\nAllow: /\nSitemap: ${publicOrigin(c)}/sitemap.xml\n`));
 app.get("/sitemap.xml", (c) => {
   const o = publicOrigin(c);
-  const urls = ["/", "/guides/monitor-ollama", "/guides/ollama-cpu-fallback", "/privacy"].map((p) => `<url><loc>${o}${p}</loc></url>`).join("");
+  const urls = ["/", "/guides/monitor-ollama", "/guides/ollama-cpu-fallback", "/guides/monitor-llama-cpp-vllm", "/privacy"].map((p) => `<url><loc>${o}${p}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`, 200, { "content-type": "application/xml" });
 });
 

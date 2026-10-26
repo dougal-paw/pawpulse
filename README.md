@@ -30,6 +30,7 @@ back from GPU to CPU (the client reads `size_vram` from `/api/ps`; needs `jq`).
 Guides:
 - [How to monitor Ollama and get an alert when it goes down](https://pulse.dougalpaw.com/guides/monitor-ollama)
 - [Detect when Ollama falls back to CPU](https://pulse.dougalpaw.com/guides/ollama-cpu-fallback)
+- [How to monitor a llama.cpp or vLLM server](https://pulse.dougalpaw.com/guides/monitor-llama-cpp-vllm)
 
 ## Stack
 

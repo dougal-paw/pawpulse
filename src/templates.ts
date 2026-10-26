@@ -327,7 +327,7 @@ See <a href="/guides/ollama-cpu-fallback">Detect when Ollama falls back to CPU</
 <h2>llama.cpp, vLLM, LM Studio and others</h2>
 <p>Anything with an OpenAI-compatible <code>/v1/models</code> endpoint works. Set
 <code>LLM_KIND=openai</code> and <code>LLM_BASE_URL</code>, for example <code>http://127.0.0.1:8080</code> for
-llama.cpp's server or <code>http://127.0.0.1:8000</code> for vLLM.</p>
+llama.cpp's server or <code>http://127.0.0.1:8000</code> for vLLM. See <a href="/guides/monitor-llama-cpp-vllm">the llama.cpp and vLLM guide</a>.</p>
 
 <h2>Other ways to do it</h2>
 <p>Paw Pulse isn't the only option. A fair summary:</p>
@@ -410,4 +410,74 @@ as <code>gpu_offload_pct</code>. Set a floor and you get one "slow" alert when i
 `;
   return page("Detect when Ollama falls back to CPU (and get an alert) — Paw Pulse", body,
     "How to tell if Ollama is running on CPU instead of GPU with ollama ps or /api/ps, the common causes, and how to get an alert when it happens.");
+}
+
+export function openaiServerGuidePage(): string {
+  const body = `
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="/guides/monitor-ollama">Guide</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
+<h1>How to monitor a llama.cpp or vLLM server (and get an alert when it goes down)</h1>
+<p class="tagline">llama.cpp's <code>llama-server</code>, vLLM, LM Studio and most other local inference servers speak the
+OpenAI API. Here's how to check they're healthy by hand, and how to get a Discord, Slack, Teams or Telegram alert
+when one dies or slows down, without opening a port.</p>
+
+<h2>Check by hand</h2>
+<p>Both servers have a health endpoint and the OpenAI model list:</p>
+<pre><code># llama.cpp (llama-server, default port 8080)
+curl -i http://127.0.0.1:8080/health      # 200 when ready; 503 while the model is still loading
+curl -s http://127.0.0.1:8080/v1/models
+
+# vLLM (default port 8000)
+curl -i http://127.0.0.1:8000/health      # 200 when the engine is healthy
+curl -s http://127.0.0.1:8000/v1/models</code></pre>
+<p>Both can also expose Prometheus metrics at <code>/metrics</code> (vLLM by default, llama.cpp with
+<code>--metrics</code>). If you already run Prometheus and Alertmanager, scrape those. If you don't, read on.</p>
+
+<h2>What usually goes wrong</h2>
+<ul>
+  <li><strong>The process dies</strong>, often running out of memory on a long context or a big batch, and nothing restarts it.</li>
+  <li><strong>The box reboots</strong> after an update and the server isn't set up as a service.</li>
+  <li><strong>It's up but slow</strong>: the model didn't fit on the GPU, another job is using the GPU, or a driver
+  update broke CUDA, so generation crawls.</li>
+</ul>
+
+<h2>Get an alert with Paw Pulse</h2>
+<p><a href="/">Paw Pulse</a> is a free, push-based monitor for home LLM servers. A small <code>sh</code> script on the
+box asks your server for <code>/v1/models</code> and pushes a heartbeat out. If the server stops answering, or the
+heartbeats stop altogether (the box is off), you get one alert, and one more when it recovers.</p>
+<ol>
+  <li>Create a monitor and install the client. The steps are the same as in the
+  <a href="/guides/monitor-ollama">Ollama guide</a> (no sign-up, about five minutes).</li>
+  <li>Point the client at your server:
+<pre><code># llama.cpp
+LLM_KIND=openai LLM_BASE_URL=http://127.0.0.1:8080
+# vLLM
+LLM_KIND=openai LLM_BASE_URL=http://127.0.0.1:8000
+# LM Studio's local server
+LLM_KIND=openai LLM_BASE_URL=http://127.0.0.1:1234</code></pre></li>
+  <li>Started the server with <code>--api-key</code>? Add <code>LLM_API_KEY=&lt;key&gt;</code>. The key is only used
+  for requests to your local server and is never sent to Paw Pulse.</li>
+</ol>
+<p>A full cron line looks like:</p>
+<pre><code>*/5 * * * * PAWPULSE_ID=&lt;id&gt; PAWPULSE_TOKEN=&lt;ingest_token&gt; LLM_KIND=openai LLM_BASE_URL=http://127.0.0.1:8080 /usr/local/bin/pawpulse.sh</code></pre>
+
+<h2>Alert when it's slow, too</h2>
+<p>Add <code>MEASURE_TPS=1 MEASURE_MODEL=&lt;model id from /v1/models&gt;</code> and the client times a 16-token
+completion on each beat. Then set a floor on the monitor:</p>
+<pre><code>curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\\\
+  -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\\\
+  -d '{"slow_tps_threshold":10}'</code></pre>
+<p class="muted">OpenAI-compatible servers don't report generation timing the way Ollama does, so the number is
+completion tokens over wall-clock time. It includes prompt processing and network overhead, so it reads a little
+low; it's a health signal, not a benchmark. Pick a threshold well below your normal speed.</p>
+
+<h2>Things to know</h2>
+<ul>
+  <li>The GPU-offload check (<code>min_gpu_pct</code>) is Ollama-only for now, because it reads Ollama's <code>/api/ps</code>.</li>
+  <li>Run the client on the same box as the server, so "box is off" and "server is down" both get caught.</li>
+  <li>Paw Pulse is open source (MIT), needs no account and never sends your prompts, hostname or IP.
+  Read the <a href="/pawpulse.sh">client script</a> before you run it.</li>
+</ul>
+`;
+  return page("How to monitor a llama.cpp or vLLM server and get alerts — Paw Pulse", body,
+    "Check llama.cpp (llama-server) and vLLM health by hand with /health and /v1/models, and get a Discord, Slack or Telegram alert when the server goes down or slows, without opening a port.");
 }

@@ -18,6 +18,7 @@ export const PAWPULSE_SH = `#!/bin/sh
 #   LLM_KIND         "ollama", "openai" or "none" (plain heartbeat, no LLM probe; default: ollama)
 #   MEASURE_TPS      "1" to run a tiny generation and measure tokens/sec (default: off)
 #   MEASURE_MODEL    Model to use for the tps probe, if enabled
+#   LLM_API_KEY      Bearer key for an OpenAI-compatible server started with --api-key (stays on this box)
 #   PAWPULSE_VERBOSE "1" to print a one-line result (default: only when run in a terminal)
 #
 # Example crontab line (every 5 minutes):
@@ -56,12 +57,20 @@ tps_json="null"
 latency_json="null"
 note=""
 
+# Optional auth header for the local OpenAI-compatible server, kept in "\$@" so
+# the key is passed as one argument.
+if [ -n "\${LLM_API_KEY:-}" ]; then
+  set -- -H "authorization: Bearer \$LLM_API_KEY"
+else
+  set --
+fi
+
 start_ms=\$(now_ms)
 
 if [ "\$LLM_KIND" = "none" ]; then
   ok="true"
 elif [ "\$LLM_KIND" = "openai" ]; then
-  resp=\$(curl --noproxy "*" -fsS -m 10 "\$LLM_BASE_URL/v1/models" 2>/dev/null) && ok="true" || ok="false"
+  resp=\$(curl --noproxy "*" -fsS -m 10 "\$@" "\$LLM_BASE_URL/v1/models" 2>/dev/null) && ok="true" || ok="false"
   if [ "\$ok" = "true" ]; then
     if [ "\$HAVE_JQ" = "1" ]; then
       models_json=\$(printf '%s' "\$resp" | jq -c '[.data[]?.id] // []')
@@ -90,7 +99,7 @@ fi
 if [ "\$ok" = "true" ] && [ "\$MEASURE_TPS" = "1" ] && [ -n "\$MEASURE_MODEL" ]; then
   gen_start=\$(now_ms)
   if [ "\$LLM_KIND" = "openai" ]; then
-    gen_resp=\$(curl --noproxy "*" -fsS -m 30 "\$LLM_BASE_URL/v1/completions" \\
+    gen_resp=\$(curl --noproxy "*" -fsS -m 30 "\$@" "\$LLM_BASE_URL/v1/completions" \\
       -H 'content-type: application/json' \\
       -d "{\\"model\\":\\"\$MEASURE_MODEL\\",\\"prompt\\":\\"hello\\",\\"max_tokens\\":16}" 2>/dev/null || true)
   else
