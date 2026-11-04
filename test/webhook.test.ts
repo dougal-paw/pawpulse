@@ -51,3 +51,8 @@ test("alertMessage: slow because of CPU fallback names the GPU share", () => {
   const msg = alertMessage("box", "slow", "slow", { lastOk: true, lastTps: 3, slowTpsThreshold: null, lastGpuPct: 12, minGpuPct: 90, graceSeconds: 300 });
   assert.match(msg, /12% of the model is on the GPU/);
 });
+
+test("alertMessage: slow because the wrong model is loaded names both", () => {
+  const msg = alertMessage("box", "slow", "slow", { lastOk: true, lastTps: null, slowTpsThreshold: null, expectedModel: "llama3.1:70b", lastLoadedModels: ["llama3.2:3b"], graceSeconds: 300 });
+  assert.match(msg, /llama3\.1:70b isn't loaded; llama3\.2:3b is running instead/);
+});

@@ -39,6 +39,7 @@ export interface CreateMonitorResult {
   grace_seconds: number;
   slow_tps_threshold: number | null;
   min_gpu_pct: number | null;
+  expected_model: string | null;
   webhook_url: string | null;
   public: boolean;
   status_url: string;
@@ -77,6 +78,7 @@ export async function createMonitor(
     grace_seconds: v.grace_seconds,
     slow_tps_threshold: v.slow_tps_threshold,
     min_gpu_pct: v.min_gpu_pct,
+    expected_model: v.expected_model,
     webhook_url: v.webhook_url,
     is_public: v.public,
     created_at: nowMs,
@@ -90,6 +92,7 @@ export async function createMonitor(
     grace_seconds: v.grace_seconds,
     slow_tps_threshold: v.slow_tps_threshold,
     min_gpu_pct: v.min_gpu_pct,
+    expected_model: v.expected_model,
     webhook_url: v.webhook_url,
     public: v.public,
     status_url: `${origin}/v1/monitors/${id}/status`,
@@ -105,6 +108,8 @@ function rowState(m: MonitorRow): {
   slow_tps_threshold: number | null;
   last_gpu_pct: number | null;
   min_gpu_pct: number | null;
+  last_loaded_models: string[] | null;
+  expected_model: string | null;
   grace_seconds: number;
 } {
   return {
@@ -114,6 +119,8 @@ function rowState(m: MonitorRow): {
     slow_tps_threshold: m.slow_tps_threshold,
     last_gpu_pct: m.last_gpu_pct,
     min_gpu_pct: m.min_gpu_pct,
+    last_loaded_models: m.last_loaded_models ? JSON.parse(m.last_loaded_models) : null,
+    expected_model: m.expected_model,
     grace_seconds: m.grace_seconds,
   };
 }
@@ -145,6 +152,8 @@ export async function recordBeat(
     slow_tps_threshold: monitor.slow_tps_threshold,
     last_gpu_pct: beat.gpu_offload_pct,
     min_gpu_pct: monitor.min_gpu_pct,
+    last_loaded_models: beat.loaded_models,
+    expected_model: monitor.expected_model,
     grace_seconds: monitor.grace_seconds,
   });
   const stateChanged = newState !== monitor.state;
@@ -161,6 +170,7 @@ export interface StatusResult {
   last_beat_at: string | null;
   last_tps: number | null;
   last_gpu_pct: number | null;
+  last_loaded_models: string[] | null;
   last_latency_ms: number | null;
   last_models: string[] | null;
   last_note: string | null;
@@ -168,6 +178,7 @@ export interface StatusResult {
   grace_seconds: number;
   slow_tps_threshold: number | null;
   min_gpu_pct: number | null;
+  expected_model: string | null;
   public: boolean;
   created_at: string;
 }
@@ -201,6 +212,7 @@ export async function getStatus(
     last_beat_at: monitor.last_beat_at ? new Date(monitor.last_beat_at).toISOString() : null,
     last_tps: monitor.last_tps,
     last_gpu_pct: monitor.last_gpu_pct,
+    last_loaded_models: monitor.last_loaded_models ? JSON.parse(monitor.last_loaded_models) : null,
     last_latency_ms: monitor.last_latency_ms,
     last_models: monitor.last_models ? JSON.parse(monitor.last_models) : null,
     last_note: monitor.last_note,
@@ -208,6 +220,7 @@ export async function getStatus(
     grace_seconds: monitor.grace_seconds,
     slow_tps_threshold: monitor.slow_tps_threshold,
     min_gpu_pct: monitor.min_gpu_pct,
+    expected_model: monitor.expected_model,
     public: !!monitor.is_public,
     created_at: new Date(monitor.created_at).toISOString(),
   };
@@ -220,6 +233,7 @@ export interface HeartbeatResult {
   tokens_per_sec: number | null;
   latency_ms: number | null;
   gpu_offload_pct: number | null;
+  loaded_models: string[] | null;
   note: string | null;
 }
 
@@ -244,6 +258,7 @@ export async function listHeartbeats(
     tokens_per_sec: b.tokens_per_sec,
     latency_ms: b.latency_ms,
     gpu_offload_pct: b.gpu_offload_pct,
+    loaded_models: b.loaded_models ? JSON.parse(b.loaded_models) : null,
     note: b.note,
   }));
 }

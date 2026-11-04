@@ -135,3 +135,16 @@ test("computeState: gpu offload below floor -> slow", () => {
   assert.equal(computeState(NOW, { ...base, last_gpu_pct: null, min_gpu_pct: 90 }), "up");
   assert.equal(computeState(NOW, { ...base, last_gpu_pct: 20, min_gpu_pct: null }), "up");
 });
+
+test("computeState: a different model loaded than expected -> slow", () => {
+  const base = { last_beat_at: NOW - 10_000, last_ok: true, last_tps: null, slow_tps_threshold: null, grace_seconds: 300 };
+  assert.equal(computeState(NOW, { ...base, expected_model: "llama3.1:70b", last_loaded_models: ["llama3.2:3b"] }), "slow");
+  assert.equal(computeState(NOW, { ...base, expected_model: "llama3.1:70b", last_loaded_models: ["qwen3:8b", "llama3.1:70b"] }), "up");
+  // idle unload and clients without jq are not alerts
+  assert.equal(computeState(NOW, { ...base, expected_model: "llama3.1:70b", last_loaded_models: [] }), "up");
+  assert.equal(computeState(NOW, { ...base, expected_model: "llama3.1:70b", last_loaded_models: null }), "up");
+  assert.equal(computeState(NOW, { ...base, expected_model: null, last_loaded_models: ["llama3.2:3b"] }), "up");
+  // a bare name means :latest, and case doesn't matter
+  assert.equal(computeState(NOW, { ...base, expected_model: "Mistral", last_loaded_models: ["mistral:latest"] }), "up");
+  assert.equal(computeState(NOW, { ...base, expected_model: "mistral", last_loaded_models: ["mistral:7b"] }), "slow");
+});

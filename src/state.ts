@@ -16,7 +16,30 @@ export interface StateInput {
   last_gpu_pct?: number | null;
   /** configured GPU offload floor, or null if not configured. */
   min_gpu_pct?: number | null;
+  /** model names loaded at the last beat (Ollama /api/ps), or null if not reported. */
+  last_loaded_models?: string[] | null;
+  /** model that should be loaded, or null if not configured. */
+  expected_model?: string | null;
   grace_seconds: number;
+}
+
+/** Ollama treats "llama3.2" as "llama3.2:latest"; compare names the same way. */
+export function normalizeModel(name: string): string {
+  const n = name.trim().toLowerCase();
+  return n.includes(":") ? n : `${n}:latest`;
+}
+
+/**
+ * True when some model is loaded but not the expected one. An empty list is
+ * not a mismatch: Ollama unloads idle models, so "nothing loaded" is normal.
+ */
+export function wrongModelLoaded(
+  expected: string | null | undefined,
+  loaded: string[] | null | undefined,
+): boolean {
+  if (!expected || !loaded || loaded.length === 0) return false;
+  const want = normalizeModel(expected);
+  return !loaded.some((m) => normalizeModel(m) === want);
 }
 
 /**
@@ -42,6 +65,8 @@ export function computeState(nowMs: number, m: StateInput): MonitorState {
   if (m.min_gpu_pct != null && m.last_gpu_pct != null && m.last_gpu_pct < m.min_gpu_pct) {
     return "slow";
   }
+
+  if (wrongModelLoaded(m.expected_model, m.last_loaded_models)) return "slow";
 
   return "up";
 }

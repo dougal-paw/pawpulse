@@ -323,6 +323,9 @@ curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
 <p class="muted">The probe runs one tiny generation per beat, so pick a small model that's normally loaded.</p>
 <p>Or catch the CPU fallback directly, without a speed probe: set <code>{"min_gpu_pct":90}</code> on the monitor.
 See <a href="/guides/ollama-cpu-fallback">Detect when Ollama falls back to CPU</a>.</p>
+<p>To catch Ollama quietly running a different (often smaller) model, set <code>{"expected_model":"llama3.1:70b"}</code>.
+The client reports which models are loaded each beat (needs <code>jq</code>), and the monitor turns slow when something else
+is loaded. Nothing loaded at all (Ollama unloads idle models) doesn't count.</p>
 
 <h2>llama.cpp, vLLM, LM Studio and others</h2>
 <p>Anything with an OpenAI-compatible <code>/v1/models</code> endpoint works. Set

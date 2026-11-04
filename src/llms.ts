@@ -10,8 +10,8 @@ export function llmsTxt(origin: string): string {
 ## API
 
 - Full machine-readable spec: ${origin}/openapi.json (OpenAPI 3.1)
-- POST ${origin}/v1/monitors — create a monitor. Body: {name?, grace_seconds? (60-86400, default 300), slow_tps_threshold?, min_gpu_pct? (0-100], webhook_url?, public?}. Response includes ingest_token and manage_token exactly once.
-- POST ${origin}/v1/monitors/:id/beat — send a heartbeat. Auth: \`Authorization: Bearer <ingest_token>\`. Body: {ok: bool, models?, tokens_per_sec?, latency_ms?, gpu_offload_pct? (0-100), note?}.
+- POST ${origin}/v1/monitors — create a monitor. Body: {name?, grace_seconds? (60-86400, default 300), slow_tps_threshold?, min_gpu_pct? (0-100], expected_model? (alert when a different Ollama model is loaded), webhook_url?, public?}. Response includes ingest_token and manage_token exactly once.
+- POST ${origin}/v1/monitors/:id/beat — send a heartbeat. Auth: \`Authorization: Bearer <ingest_token>\`. Body: {ok: bool, models?, tokens_per_sec?, latency_ms?, gpu_offload_pct? (0-100), loaded_models? (names from Ollama /api/ps), note?}.
 - GET ${origin}/v1/monitors/:id/status — current state (up/down/slow/new). Public monitors need no auth; private ones need \`Authorization: Bearer <manage_token>\`.
 - GET ${origin}/v1/monitors/:id/heartbeats?limit=50 — recent heartbeats, newest first.
 - PATCH/DELETE ${origin}/v1/monitors/:id — update or permanently delete, with manage_token.

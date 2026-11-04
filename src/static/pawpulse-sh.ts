@@ -130,15 +130,18 @@ fi
 # Report the lowest VRAM share across them; under 100 means part runs on CPU.
 # Checked after the tps probe so a model is likely loaded.
 gpu_json="null"
+loaded_json="null"
 if [ "\$ok" = "true" ] && [ "\$LLM_KIND" = "ollama" ] && [ "\$HAVE_JQ" = "1" ]; then
   ps_resp=\$(curl --noproxy "*" -fsS -m 5 "\$LLM_BASE_URL/api/ps" 2>/dev/null || true)
   if [ -n "\$ps_resp" ]; then
     gpu=\$(printf '%s' "\$ps_resp" | jq -r '[.models[]? | select((.size // 0) > 0) | ((.size_vram // 0) * 1000 / .size | floor) / 10] | min // empty' 2>/dev/null || true)
     [ -n "\$gpu" ] && gpu_json="\$gpu"
+    loaded=\$(printf '%s' "\$ps_resp" | jq -c '[.models[]?.name | select(type == "string")][:20]' 2>/dev/null || true)
+    [ -n "\$loaded" ] && loaded_json="\$loaded"
   fi
 fi
 
-body="{\\"ok\\":\$ok,\\"models\\":\$models_json,\\"tokens_per_sec\\":\$tps_json,\\"latency_ms\\":\$latency_json,\\"gpu_offload_pct\\":\$gpu_json"
+body="{\\"ok\\":\$ok,\\"models\\":\$models_json,\\"tokens_per_sec\\":\$tps_json,\\"latency_ms\\":\$latency_json,\\"gpu_offload_pct\\":\$gpu_json,\\"loaded_models\\":\$loaded_json"
 if [ -n "\$note" ]; then
   body="\$body,\\"note\\":\\"\$note\\""
 fi

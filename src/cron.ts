@@ -19,6 +19,8 @@ function rowState(m: MonitorRow) {
     slow_tps_threshold: m.slow_tps_threshold,
     last_gpu_pct: m.last_gpu_pct,
     min_gpu_pct: m.min_gpu_pct,
+    last_loaded_models: m.last_loaded_models ? (JSON.parse(m.last_loaded_models) as string[]) : null,
+    expected_model: m.expected_model,
     grace_seconds: m.grace_seconds,
   };
 }
@@ -47,7 +49,7 @@ export async function runCronSweep(env: Env, nowMs: number): Promise<{ checked: 
         monitor.name,
         alert,
         newState,
-        { lastOk: rs.last_ok, lastTps: rs.last_tps, slowTpsThreshold: rs.slow_tps_threshold, lastGpuPct: rs.last_gpu_pct, minGpuPct: rs.min_gpu_pct, graceSeconds: rs.grace_seconds },
+        { lastOk: rs.last_ok, lastTps: rs.last_tps, slowTpsThreshold: rs.slow_tps_threshold, lastGpuPct: rs.last_gpu_pct, minGpuPct: rs.min_gpu_pct, lastLoadedModels: rs.last_loaded_models, expectedModel: rs.expected_model, graceSeconds: rs.grace_seconds },
         nowMs,
       );
     }

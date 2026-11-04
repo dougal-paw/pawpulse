@@ -4,6 +4,7 @@
 
 import type { AlertKind } from "./state.ts";
 import type { MonitorState } from "./state.ts";
+import { wrongModelLoaded } from "./state.ts";
 
 export interface AlertDetail {
   lastOk: boolean | null;
@@ -11,6 +12,8 @@ export interface AlertDetail {
   slowTpsThreshold: number | null;
   lastGpuPct?: number | null;
   minGpuPct?: number | null;
+  lastLoadedModels?: string[] | null;
+  expectedModel?: string | null;
   graceSeconds: number;
 }
 
@@ -40,6 +43,9 @@ export function alertMessage(
   }
   if (d.minGpuPct != null && d.lastGpuPct != null && d.lastGpuPct < d.minGpuPct) {
     return `🟠 ${n} is SLOW: only ${Math.round(d.lastGpuPct)}% of the model is on the GPU (your floor is ${d.minGpuPct}%). It has probably fallen back to CPU.`;
+  }
+  if (wrongModelLoaded(d.expectedModel, d.lastLoadedModels)) {
+    return `🟠 ${n} is SLOW: ${plainName(d.expectedModel!)} isn't loaded; ${plainName(d.lastLoadedModels!.join(", "))} is running instead.`;
   }
   const limit = d.slowTpsThreshold !== null ? ` (your threshold is ${d.slowTpsThreshold})` : "";
   return `🟠 ${n} is SLOW: ${d.lastTps ?? "?"} tok/s${limit}.`;

@@ -117,3 +117,14 @@ test("validateCreateMonitor / validatePatchMonitor: min_gpu_pct", () => {
   assert.equal(validatePatchMonitor({ min_gpu_pct: null }).min_gpu_pct, null);
   assert.throws(() => validatePatchMonitor({ min_gpu_pct: 150 }), ValidationError);
 });
+
+test("expected_model and loaded_models", () => {
+  assert.equal(validateCreateMonitor({ expected_model: " llama3.1:70b " }).expected_model, "llama3.1:70b");
+  assert.equal(validateCreateMonitor({}).expected_model, null);
+  assert.equal(validatePatchMonitor({ expected_model: null }).expected_model, null);
+  assert.throws(() => validateCreateMonitor({ expected_model: 5 }), ValidationError);
+  assert.throws(() => validateCreateMonitor({ expected_model: "x".repeat(201) }), ValidationError);
+  assert.deepEqual(validateBeat({ ok: true, loaded_models: ["a:1"] }).loaded_models, ["a:1"]);
+  assert.equal(validateBeat({ ok: true }).loaded_models, null);
+  assert.throws(() => validateBeat({ ok: true, loaded_models: [1] }), ValidationError);
+});

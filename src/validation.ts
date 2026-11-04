@@ -15,6 +15,7 @@ export interface CreateMonitorInput {
   grace_seconds?: unknown;
   slow_tps_threshold?: unknown;
   min_gpu_pct?: unknown;
+  expected_model?: unknown;
   webhook_url?: unknown;
   public?: unknown;
 }
@@ -24,6 +25,7 @@ export interface ValidatedMonitorFields {
   grace_seconds: number;
   slow_tps_threshold: number | null;
   min_gpu_pct: number | null;
+  expected_model: string | null;
   webhook_url: string | null;
   public: boolean;
 }
@@ -64,6 +66,14 @@ function validateMinGpuPct(value: unknown): number | null {
     throw new ValidationError("min_gpu_pct must be a number above 0 and at most 100");
   }
   return p;
+}
+
+function validateExpectedModel(value: unknown): string | null {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || value.length > MODEL_NAME_MAX) {
+    throw new ValidationError(`expected_model must be a string of at most ${MODEL_NAME_MAX} characters`);
+  }
+  return value.trim() || null;
 }
 
 function validateWebhookUrl(value: unknown): string | null {
@@ -110,7 +120,9 @@ export function validateCreateMonitor(input: CreateMonitorInput): ValidatedMonit
   const isPublic = input.public === undefined ? false : validatePublic(input.public);
 
   const min_gpu_pct = input.min_gpu_pct === undefined ? null : validateMinGpuPct(input.min_gpu_pct);
-  return { name, grace_seconds, slow_tps_threshold, min_gpu_pct, webhook_url, public: isPublic };
+  const expected_model =
+    input.expected_model === undefined ? null : validateExpectedModel(input.expected_model);
+  return { name, grace_seconds, slow_tps_threshold, min_gpu_pct, expected_model, webhook_url, public: isPublic };
 }
 
 export interface PatchMonitorInput {
@@ -118,6 +130,7 @@ export interface PatchMonitorInput {
   grace_seconds?: unknown;
   slow_tps_threshold?: unknown;
   min_gpu_pct?: unknown;
+  expected_model?: unknown;
   webhook_url?: unknown;
   public?: unknown;
 }
@@ -137,6 +150,7 @@ export function validatePatchMonitor(
     out.slow_tps_threshold = validateSlowTpsThreshold(input.slow_tps_threshold);
   }
   if (input.min_gpu_pct !== undefined) out.min_gpu_pct = validateMinGpuPct(input.min_gpu_pct);
+  if (input.expected_model !== undefined) out.expected_model = validateExpectedModel(input.expected_model);
   if (input.webhook_url !== undefined) out.webhook_url = validateWebhookUrl(input.webhook_url);
   if (input.public !== undefined) out.public = validatePublic(input.public);
 
@@ -153,6 +167,7 @@ export interface BeatInput {
   tokens_per_sec?: unknown;
   latency_ms?: unknown;
   gpu_offload_pct?: unknown;
+  loaded_models?: unknown;
   note?: unknown;
 }
 
@@ -162,7 +177,19 @@ export interface ValidatedBeat {
   tokens_per_sec: number | null;
   latency_ms: number | null;
   gpu_offload_pct: number | null;
+  loaded_models: string[] | null;
   note: string | null;
+}
+
+function validateModelList(value: unknown, field: string): string[] | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || !value.every((m) => typeof m === "string")) {
+    throw new ValidationError(`${field} must be an array of strings`);
+  }
+  if (value.length > MODELS_MAX) {
+    throw new ValidationError(`${field} must contain at most ${MODELS_MAX} entries`);
+  }
+  return value.map((m) => m.slice(0, MODEL_NAME_MAX));
 }
 
 export function validateBeat(input: BeatInput): ValidatedBeat {
@@ -173,16 +200,8 @@ export function validateBeat(input: BeatInput): ValidatedBeat {
     throw new ValidationError("ok must be a boolean");
   }
 
-  let models: string[] | null = null;
-  if (input.models !== undefined && input.models !== null) {
-    if (!Array.isArray(input.models) || !input.models.every((m) => typeof m === "string")) {
-      throw new ValidationError("models must be an array of strings");
-    }
-    if (input.models.length > MODELS_MAX) {
-      throw new ValidationError(`models must contain at most ${MODELS_MAX} entries`);
-    }
-    models = input.models.map((m) => m.slice(0, MODEL_NAME_MAX));
-  }
+  const models = validateModelList(input.models, "models");
+  const loaded_models = validateModelList(input.loaded_models, "loaded_models");
 
   let tokens_per_sec: number | null = null;
   if (input.tokens_per_sec !== undefined && input.tokens_per_sec !== null) {
@@ -222,5 +241,5 @@ export function validateBeat(input: BeatInput): ValidatedBeat {
     note = input.note;
   }
 
-  return { ok: input.ok, models, tokens_per_sec, latency_ms, gpu_offload_pct, note };
+  return { ok: input.ok, models, tokens_per_sec, latency_ms, gpu_offload_pct, loaded_models, note };
 }
