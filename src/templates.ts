@@ -1,4 +1,5 @@
 import type { StatusResult } from "./service.ts";
+import { wrongModelLoaded } from "./state.ts";
 
 const BASE_CSS = `
 :root { color-scheme: light dark; }
@@ -32,6 +33,7 @@ footer { margin-top: 3rem; font-size: .85rem; opacity: .7; }
 .pill-slow { background: #d79f00; }
 .pill-down { background: #e74c3c; }
 .pill-new { background: #95a5a6; }
+.warn { border-left: 4px solid #d79f00; background: rgba(215,159,0,.12); padding: .6rem .9rem; border-radius: 6px; }
 nav a { margin-right: 1rem; font-size: .9rem; }
 .hero { background: radial-gradient(ellipse at top left, #3b1d6e 0%, #140b2a 45%, #0b1e2d 100%); color: #fff; padding: 1.5rem 1.25rem 2.5rem; }
 .hero-in { max-width: 1040px; margin: 0 auto; }
@@ -228,10 +230,15 @@ export function statusPage(status: StatusResult): string {
 <nav><a href="/">Paw Pulse</a></nav>
 <h1>${escapeHtml(status.name)}</h1>
 <p><span class="${pillClass(status.state)}">${status.state}</span></p>
+${wrongModelLoaded(status.expected_model, status.last_loaded_models)
+  ? `<p class="warn"><strong>Wrong model loaded:</strong> expected ${escapeHtml(status.expected_model!)}, but ${escapeHtml(status.last_loaded_models!.join(", "))} is running.</p>`
+  : ""}
 <div class="card">
   <p><strong>Last heartbeat:</strong> ${status.last_beat_at ?? "never"}</p>
   <p><strong>Tokens/sec (last):</strong> ${status.last_tps ?? "—"}</p>
   ${status.last_gpu_pct != null ? `<p><strong>GPU offload (last):</strong> ${Math.round(status.last_gpu_pct)}%</p>` : ""}
+  ${status.last_loaded_models != null ? `<p><strong>Loaded models:</strong> ${status.last_loaded_models.length ? escapeHtml(status.last_loaded_models.join(", ")) : "none (idle)"}</p>` : ""}
+  ${status.expected_model ? `<p><strong>Expected model:</strong> ${escapeHtml(status.expected_model)}</p>` : ""}
   <p><strong>Latency (last):</strong> ${status.last_latency_ms != null ? status.last_latency_ms + " ms" : "—"}</p>
   <p><strong>Uptime (24h):</strong> ${uptime}</p>
   ${status.last_note ? `<p><strong>Note:</strong> ${escapeHtml(status.last_note)}</p>` : ""}
