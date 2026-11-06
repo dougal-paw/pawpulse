@@ -31,6 +31,7 @@ Typical flow: create_monitor -> setup_instructions -> run commands on the box ->
 - ${origin}/guides/monitor-ollama — step-by-step: monitor Ollama (or llama.cpp/vLLM) with cron or a systemd timer, slow-speed alerts, comparison with Uptime Kuma and Healthchecks.io.
 - ${origin}/guides/ollama-cpu-fallback — detect when Ollama runs a model on CPU instead of GPU (ollama ps, /api/ps size_vram) and alert on it with min_gpu_pct.
 - ${origin}/guides/monitor-llama-cpp-vllm — monitor llama.cpp (llama-server), vLLM or LM Studio: /health and /v1/models checks, LLM_KIND=openai, LLM_API_KEY, slow alerts.
+- ${origin}/guides/ollama-wrong-model — detect when Ollama is running a different model than you expect (ollama ps, /api/ps) and alert on it with expected_model.
 
 ## Privacy
 

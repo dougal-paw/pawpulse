@@ -332,7 +332,8 @@ curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
 See <a href="/guides/ollama-cpu-fallback">Detect when Ollama falls back to CPU</a>.</p>
 <p>To catch Ollama quietly running a different (often smaller) model, set <code>{"expected_model":"llama3.1:70b"}</code>.
 The client reports which models are loaded each beat (needs <code>jq</code>), and the monitor turns slow when something else
-is loaded. Nothing loaded at all (Ollama unloads idle models) doesn't count.</p>
+is loaded. Nothing loaded at all (Ollama unloads idle models) doesn't count.
+See <a href="/guides/ollama-wrong-model">Detect when Ollama is running the wrong model</a>.</p>
 
 <h2>llama.cpp, vLLM, LM Studio and others</h2>
 <p>Anything with an OpenAI-compatible <code>/v1/models</code> endpoint works. Set
@@ -490,4 +491,60 @@ low; it's a health signal, not a benchmark. Pick a threshold well below your nor
 `;
   return page("How to monitor a llama.cpp or vLLM server and get alerts — Paw Pulse", body,
     "Check llama.cpp (llama-server) and vLLM health by hand with /health and /v1/models, and get a Discord, Slack or Telegram alert when the server goes down or slows, without opening a port.");
+}
+
+export function wrongModelGuidePage(): string {
+  const body = `
+<nav><a href="/"><strong>🐾 Paw Pulse</strong></a><a href="/guides/monitor-ollama">Guide</a><a href="/openapi.json">API</a><a href="https://github.com/dougal-paw/pawpulse">Source</a></nav>
+<h1>Detect when Ollama is running the wrong model</h1>
+<p class="tagline">Your server is up and answering, but the model that's loaded isn't the one you meant. Maybe it's a
+smaller model, or a different tag. Answers get worse and nothing tells you why. Here's how to check, and how to get an alert.</p>
+
+<h2>Check by hand: <code>ollama ps</code></h2>
+<p><code>ollama ps</code> lists the models currently loaded in memory:</p>
+<pre><code>NAME           ID            SIZE     PROCESSOR    UNTIL
+llama3.2:3b    a80c4f17acd5  3.5 GB   100% GPU     4 minutes from now</code></pre>
+<p>If you expected <code>llama3.1:70b</code> and see <code>llama3.2:3b</code>, something asked for the small model.
+The same list comes from the API:</p>
+<pre><code>curl -s http://127.0.0.1:11434/api/ps | jq -r '.models[].name'</code></pre>
+
+<h2>Common causes</h2>
+<ul>
+  <li><strong>A client asks for a different model.</strong> Each request names a model. A chat UI, an agent, or a script with
+  a different default loads that model, and if memory is tight (or <code>OLLAMA_MAX_LOADED_MODELS</code> is low) your model is unloaded to make room.</li>
+  <li><strong>The tag isn't the one you think.</strong> A bare name such as <code>llama3.1</code> means <code>llama3.1:latest</code>,
+  which may not be the size or quantisation you pulled on purpose.</li>
+  <li><strong>A fallback in your own stack.</strong> Some tools quietly switch to a smaller default model when the
+  one you configured fails to load.</li>
+</ul>
+
+<h2>Get an alert when it happens</h2>
+<p><a href="/guides/monitor-ollama">Paw Pulse</a> is a free, push-based monitor for home LLM servers. Its client script runs
+from cron on the Ollama box and sends the names of the loaded models (from <code>/api/ps</code>) with each heartbeat. Tell the
+monitor which model you expect, and you get one "slow" alert when a different model is running and one more when it's fixed.</p>
+<ol>
+  <li>Set up a monitor and the client: follow the <a href="/guides/monitor-ollama">Ollama monitoring guide</a> (no sign-up, about five minutes).
+  Install <code>jq</code> on the box (<code>apt install jq</code>); the model check needs it.</li>
+  <li>Set the expected model on the monitor:
+<pre><code>curl -X PATCH __ORIGIN__/v1/monitors/&lt;id&gt; \\
+  -H 'authorization: Bearer &lt;manage_token&gt;' -H 'content-type: application/json' \\
+  -d '{"expected_model":"llama3.1:70b"}'</code></pre></li>
+</ol>
+<p>The alert in Discord, Slack, Teams, Telegram or Google Chat reads like:</p>
+<pre><code>🟠 home-ollama is SLOW: llama3.1:70b isn't loaded; llama3.2:3b is running instead.</code></pre>
+<p>If the monitor is public, its status page shows a "Wrong model loaded" warning and the loaded and expected models.</p>
+
+<h2>Things to know</h2>
+<ul>
+  <li><strong>Idle isn't wrong.</strong> Ollama unloads models after a few idle minutes. When nothing is loaded there's
+  no alert; it only fires when <em>other</em> models are loaded and yours isn't.</li>
+  <li><strong>Names are matched loosely.</strong> Case doesn't matter, and a bare name matches <code>:latest</code>.
+  Use the full tag (<code>llama3.1:70b</code>) to be exact.</li>
+  <li>This was a <a href="https://bsky.app/profile/dougalpaw.com/post/3mzi43leujl27">user request</a>, built in a day.
+  Paw Pulse is open source (MIT), needs no account and never sends your prompts, hostname or IP.
+  Read the <a href="/pawpulse.sh">client script</a> before you run it.</li>
+</ul>
+`;
+  return page("Detect when Ollama is running the wrong model (and get an alert) — Paw Pulse", body,
+    "How to check which model Ollama has loaded with ollama ps or /api/ps, why a different model ends up running, and how to get an alert when it does.");
 }
